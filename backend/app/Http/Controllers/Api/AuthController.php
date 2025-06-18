@@ -18,14 +18,30 @@ class AuthController extends Controller
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
+        ], [
+            'email.required' => 'L\'email est requis.',
+            'email.email' => 'Le format de l\'email est invalide.',
+            'password.required' => 'Le mot de passe est requis.'
         ]);
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Les identifiants fournis sont incorrects.'],
-            ]);
+        if (!$user) {
+            return response()->json([
+                'message' => 'Aucun utilisateur trouvé avec cet email.'
+            ], 404);
+        }
+
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Identifiants incorrects.'
+            ], 401);
+        }
+
+        if (is_null($user->email_verified_at)) {
+            return response()->json([
+                'message' => 'Votre email n\'est pas vérifié.'
+            ], 403);
         }
 
         // Créer un token
@@ -59,19 +75,39 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'organisation' => 'required|string|max:255',
             'role' => 'sometimes|string|in:user,admin,super-admin',
+        ], [
+            'nom.required' => 'Le nom est requis.',
+            'prenom.required' => 'Le prénom est requis.',
+            'email.required' => 'L\'email est requis.',
+            'email.email' => 'Le format de l\'email est invalide.',
+            'email.unique' => 'Cet email est déjà utilisé.',
+            'password.required' => 'Le mot de passe est requis.',
+            'password.min' => 'Le mot de passe doit contenir au moins 8 caractères.',
+            'password.confirmed' => 'La confirmation du mot de passe ne correspond pas.',
+            'organisation.required' => 'L\'organisation est requise.',
         ]);
 
-        $user = User::create([
-            'nom' => $request->nom,
-            'prenom' => $request->prenom,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'organisation' => $request->organisation,
-            'role' => $request->role ?? 'user',
-        ]);
+        try {
+            $user = User::create([
+                'nom' => $request->nom,
+                'prenom' => $request->prenom,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'organisation' => $request->organisation,
+                'role' => $request->role ?? 'user',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la création de l\'utilisateur.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
 
         // Assigner le rôle Spatie
         $user->assignRole($request->role ?? 'user');
+
+        // Envoi de l'email de vérification
+        $user->sendEmailVerificationNotification();
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
