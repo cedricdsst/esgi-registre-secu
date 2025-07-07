@@ -1,6 +1,11 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\SiteController;
+use App\Http\Controllers\Api\BatimentController;
+use App\Http\Controllers\Api\NiveauController;
+use App\Http\Controllers\Api\PartieController;
+use App\Http\Controllers\Api\LotController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
@@ -20,6 +25,32 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/logout-all', [AuthController::class, 'logoutAll']);
+    
+    // Routes pour la gestion des sites et bâtiments
+    Route::apiResource('sites', SiteController::class);
+    Route::apiResource('batiments', BatimentController::class);
+    Route::apiResource('niveaux', NiveauController::class);
+    Route::apiResource('parties', PartieController::class);
+    Route::apiResource('lots', LotController::class);
+    
+    // Routes pour les bâtiments d'un site spécifique
+    Route::get('sites/{site}/batiments', function ($siteId) {
+        return app(BatimentController::class)->index(request()->merge(['site_id' => $siteId]));
+    });
+    
+    // Routes pour les niveaux d'un bâtiment spécifique
+    Route::get('batiments/{batiment}/niveaux', function ($batimentId) {
+        return app(NiveauController::class)->index(request()->merge(['batiment_id' => $batimentId]));
+    });
+    
+    // Routes pour les parties d'un niveau spécifique
+    Route::get('niveaux/{niveau}/parties', function ($niveauId) {
+        return app(PartieController::class)->index(request()->merge(['niveau_id' => $niveauId]));
+    });
+    
+    // Routes pour la gestion des lots dans les parties
+    Route::post('parties/{party}/lots/attach', [PartieController::class, 'attachLot']);
+    Route::post('parties/{party}/lots/detach', [PartieController::class, 'detachLot']);
     
     // Futures routes pour vos applications
     Route::prefix('security-register')->group(function () {
