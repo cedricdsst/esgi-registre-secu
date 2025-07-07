@@ -10,10 +10,15 @@ return new class extends Migration
     {
         Schema::create('parties', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('niveau_id')->constrained('niveaux')->onDelete('cascade');
             $table->string('nom');
-            $table->string('type')->nullable(); // privative, commune
-            $table->text('description')->nullable();
+            $table->enum('type', ['privative', 'commune']);
+            $table->boolean('isICPE')->default(false);
+            $table->boolean('isPrivative')->default(false);
             $table->timestamps();
+            $table->timestamp('createdAt')->useCurrent();
+            $table->timestamp('modifiedAt')->useCurrent()->useCurrentOnUpdate();
+            $table->softDeletes();
         });
     }
 

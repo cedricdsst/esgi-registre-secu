@@ -10,10 +10,14 @@ return new class extends Migration
     {
         Schema::create('batiments', function (Blueprint $table) {
             $table->id();
-            $table->string('nom');
-            $table->string('typologie')->nullable(); // ERP, IGH, HAB, BUP, ICPE
-            $table->text('description')->nullable();
+            $table->foreignId('site_id')->constrained('sites')->onDelete('cascade');
+            $table->string('name');
+            $table->string('type'); // ERP, IGH, HAB, BUP, ICPE
+            $table->boolean('isICPE')->default(false);
             $table->timestamps();
+            $table->timestamp('createdAt')->useCurrent();
+            $table->timestamp('modifiedAt')->useCurrent()->useCurrentOnUpdate();
+            $table->softDeletes();
         });
     }
 
