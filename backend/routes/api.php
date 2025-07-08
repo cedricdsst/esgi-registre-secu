@@ -30,7 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('sites', SiteController::class);
     Route::apiResource('batiments', BatimentController::class);
     Route::apiResource('niveaux', NiveauController::class);
-    Route::apiResource('parties', PartieController::class);
+    Route::apiResource('parties', PartieController::class)->parameters(['parties' => 'partie']);
     Route::apiResource('lots', LotController::class);
     
     // Routes pour les bâtiments d'un site spécifique
@@ -49,8 +49,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     
     // Routes pour la gestion des lots dans les parties
-    Route::post('parties/{party}/lots/attach', [PartieController::class, 'attachLot']);
-    Route::post('parties/{party}/lots/detach', [PartieController::class, 'detachLot']);
+    Route::post('parties/{partie}/lots/attach', [PartieController::class, 'attachLot']);
+    Route::post('parties/{partie}/lots/detach', [PartieController::class, 'detachLot']);
     
     // Futures routes pour vos applications
     Route::prefix('security-register')->group(function () {

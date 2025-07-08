@@ -192,7 +192,7 @@ class PartieController extends Controller
     /**
      * Attach a lot to a partie
      */
-    public function attachLot(Request $request, Partie $party)
+    public function attachLot(Request $request, Partie $partie)
     {
         $request->validate([
             'lot_id' => 'required|exists:lots,id',
@@ -204,11 +204,11 @@ class PartieController extends Controller
 
         // Vérifier les droits d'écriture
         if (!$user->hasRole('super-admin') && 
-            $party->niveau->batiment->site->client_id !== $user->id && 
-            !$party->niveau->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$party->niveau->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$party->niveau->droitsNiveau()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$party->droitsPartie()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
+            $partie->niveau->batiment->site->client_id !== $user->id && 
+            !$partie->niveau->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->niveau->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->niveau->droitsNiveau()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->droitsPartie()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
             return response()->json([
                 'message' => 'Vous n\'avez pas les droits pour modifier cette partie.'
             ], 403);
@@ -222,11 +222,11 @@ class PartieController extends Controller
             $pivotData['type'] = $request->type;
         }
 
-        $party->lots()->attach($request->lot_id, $pivotData);
+        $partie->lots()->attach($request->lot_id, $pivotData);
 
         return response()->json([
             'message' => 'Lot attaché avec succès à la partie',
-            'partie' => new PartieResource($party->load(['lots' => function ($query) {
+            'partie' => new PartieResource($partie->load(['lots' => function ($query) {
                 $query->withPivot('libelle', 'type');
             }]))
         ]);
@@ -235,7 +235,7 @@ class PartieController extends Controller
     /**
      * Detach a lot from a partie
      */
-    public function detachLot(Request $request, Partie $party)
+    public function detachLot(Request $request, Partie $partie)
     {
         $request->validate([
             'lot_id' => 'required|exists:lots,id',
@@ -245,17 +245,17 @@ class PartieController extends Controller
 
         // Vérifier les droits d'écriture
         if (!$user->hasRole('super-admin') && 
-            $party->niveau->batiment->site->client_id !== $user->id && 
-            !$party->niveau->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$party->niveau->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$party->niveau->droitsNiveau()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$party->droitsPartie()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
+            $partie->niveau->batiment->site->client_id !== $user->id && 
+            !$partie->niveau->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->niveau->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->niveau->droitsNiveau()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->droitsPartie()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
             return response()->json([
                 'message' => 'Vous n\'avez pas les droits pour modifier cette partie.'
             ], 403);
         }
 
-        $party->lots()->detach($request->lot_id);
+        $partie->lots()->detach($request->lot_id);
 
         return response()->json([
             'message' => 'Lot détaché avec succès de la partie'
