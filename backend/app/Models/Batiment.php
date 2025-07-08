@@ -36,6 +36,11 @@ class Batiment extends Model
     {
         return $this->hasMany(Niveau::class);
     }
+    
+    public function parties()
+    {
+        return $this->hasMany(Partie::class);
+    }
 
     public function erps()
     {

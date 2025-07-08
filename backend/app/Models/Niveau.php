@@ -23,7 +23,16 @@ class Niveau extends Model
 
     public function parties()
     {
-        return $this->hasMany(Partie::class);
+        return $this->belongsToMany(Partie::class, 'partie_niveau')
+                    ->withPivot([
+                        'libelle',
+                        'effectif_public',
+                        'personnel',
+                        'surface_exploitation',
+                        'surface_gla',
+                        'surface_accessible_public'
+                    ])
+                    ->withTimestamps();
     }
 
     public function droitsNiveau()
