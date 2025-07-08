@@ -11,9 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('lots', function (Blueprint $table) {
-            $table->dropColumn(['createdAt', 'modifiedAt']);
-        });
+        // Vérifier si les colonnes existent avant de les supprimer
+        if (Schema::hasColumn('lots', 'createdAt') || Schema::hasColumn('lots', 'modifiedAt')) {
+            Schema::table('lots', function (Blueprint $table) {
+                if (Schema::hasColumn('lots', 'createdAt')) {
+                    $table->dropColumn('createdAt');
+                }
+                if (Schema::hasColumn('lots', 'modifiedAt')) {
+                    $table->dropColumn('modifiedAt');
+                }
+            });
+        }
     }
 
     /**

@@ -10,11 +10,12 @@ return new class extends Migration
     {
         Schema::create('parties', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('niveau_id')->constrained('niveaux')->onDelete('cascade');
+            $table->foreignId('batiment_id')->constrained('batiments')->onDelete('cascade');
             $table->string('nom');
             $table->enum('type', ['privative', 'commune']);
             $table->boolean('isICPE')->default(false);
             $table->boolean('isPrivative')->default(false);
+            $table->text('activites_erp')->nullable(); // Pour les activités ERP
             $table->timestamps();
             $table->timestamp('createdAt')->useCurrent();
             $table->timestamp('modifiedAt')->useCurrent()->useCurrentOnUpdate();
