@@ -80,7 +80,7 @@ class DroitsSeeder extends Seeder
         }
 
         // Droits sur des parties spécifiques
-        $partieRestaurant = Partie::whereHas('niveau.batiment.site', function ($query) {
+        $partieRestaurant = Partie::whereHas('batiment.site', function ($query) {
             $query->where('nom', 'Hôtel Grand Paris');
         })->where('nom', 'Restaurant')->first();
 

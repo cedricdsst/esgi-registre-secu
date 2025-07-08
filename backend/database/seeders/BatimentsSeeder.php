@@ -106,20 +106,100 @@ class BatimentsSeeder extends Seeder
 
     private function createPartiesForHotelNiveau(Niveau $niveau)
     {
+        // Récupérer le bâtiment
+        $batiment = $niveau->batiment;
+        
         switch ($niveau->numero_etage) {
             case -1: // Sous-sol
                 $parties = [
-                    ['nom' => 'Parking', 'type' => 'commune', 'isICPE' => false, 'isPrivative' => false],
-                    ['nom' => 'Local technique', 'type' => 'commune', 'isICPE' => false, 'isPrivative' => false],
-                    ['nom' => 'Cave à vin', 'type' => 'commune', 'isICPE' => false, 'isPrivative' => false],
+                    [
+                        'nom' => 'Parking',
+                        'type' => 'commune',
+                        'activites_erp' => 'Stationnement véhicules',
+                        'niveaux_data' => [
+                            'effectif_public' => 100,
+                            'personnel' => 2,
+                            'surface_exploitation' => 800.0,
+                            'surface_gla' => 800.0,
+                            'surface_accessible_public' => 800.0,
+                        ]
+                    ],
+                    [
+                        'nom' => 'Local technique',
+                        'type' => 'commune',
+                        'activites_erp' => 'Techniques - chauffage, ventilation',
+                        'niveaux_data' => [
+                            'effectif_public' => 0,
+                            'personnel' => 3,
+                            'surface_exploitation' => 150.0,
+                            'surface_gla' => 150.0,
+                            'surface_accessible_public' => 0.0,
+                        ]
+                    ],
+                    [
+                        'nom' => 'Cave à vin',
+                        'type' => 'commune',
+                        'activites_erp' => 'Stockage boissons',
+                        'niveaux_data' => [
+                            'effectif_public' => 10,
+                            'personnel' => 1,
+                            'surface_exploitation' => 80.0,
+                            'surface_gla' => 80.0,
+                            'surface_accessible_public' => 80.0,
+                        ]
+                    ],
                 ];
                 break;
             case 0: // RDC
                 $parties = [
-                    ['nom' => 'Réception', 'type' => 'commune', 'isICPE' => false, 'isPrivative' => false],
-                    ['nom' => 'Restaurant', 'type' => 'commune', 'isICPE' => false, 'isPrivative' => false],
-                    ['nom' => 'Salon', 'type' => 'commune', 'isICPE' => false, 'isPrivative' => false],
-                    ['nom' => 'Boutique', 'type' => 'commune', 'isICPE' => false, 'isPrivative' => false],
+                    [
+                        'nom' => 'Réception',
+                        'type' => 'commune',
+                        'activites_erp' => 'Accueil, réception clientèle',
+                        'niveaux_data' => [
+                            'effectif_public' => 50,
+                            'personnel' => 8,
+                            'surface_exploitation' => 120.0,
+                            'surface_gla' => 120.0,
+                            'surface_accessible_public' => 120.0,
+                        ]
+                    ],
+                    [
+                        'nom' => 'Restaurant',
+                        'type' => 'commune',
+                        'activites_erp' => 'Restauration traditionnelle',
+                        'niveaux_data' => [
+                            'effectif_public' => 150,
+                            'personnel' => 15,
+                            'surface_exploitation' => 300.0,
+                            'surface_gla' => 300.0,
+                            'surface_accessible_public' => 250.0,
+                        ]
+                    ],
+                    [
+                        'nom' => 'Salon',
+                        'type' => 'commune',
+                        'activites_erp' => 'Détente, attente clientèle',
+                        'niveaux_data' => [
+                            'effectif_public' => 40,
+                            'personnel' => 2,
+                            'surface_exploitation' => 80.0,
+                            'surface_gla' => 80.0,
+                            'surface_accessible_public' => 80.0,
+                        ]
+                    ],
+                    [
+                        'nom' => 'Boutique',
+                        'type' => 'commune',
+                        'activites_erp' => 'Vente souvenirs, objets',
+                        'niveaux_data' => [
+                            'effectif_public' => 25,
+                            'personnel' => 3,
+                            'surface_exploitation' => 45.0,
+                            'surface_gla' => 45.0,
+                            'surface_accessible_public' => 45.0,
+                        ]
+                    ],
                 ];
                 break;
             default: // Étages
@@ -128,23 +208,59 @@ class BatimentsSeeder extends Seeder
                     $parties[] = [
                         'nom' => "Chambre {$niveau->numero_etage}" . str_pad($i, 2, '0', STR_PAD_LEFT),
                         'type' => 'privative',
-                        'isICPE' => false,
-                        'isPrivative' => true,
+                        'activites_erp' => 'Hébergement hôtelier',
+                        'niveaux_data' => [
+                            'effectif_public' => 4,
+                            'personnel' => 0,
+                            'surface_exploitation' => 25.0,
+                            'surface_gla' => 25.0,
+                            'surface_accessible_public' => 25.0,
+                        ]
                     ];
                 }
-                $parties[] = ['nom' => 'Couloir', 'type' => 'commune', 'isICPE' => false, 'isPrivative' => false];
-                $parties[] = ['nom' => 'Local ménage', 'type' => 'commune', 'isICPE' => false, 'isPrivative' => false];
+                $parties[] = [
+                    'nom' => 'Couloir',
+                    'type' => 'commune',
+                    'activites_erp' => 'Circulation horizontale',
+                    'niveaux_data' => [
+                        'effectif_public' => 0,
+                        'personnel' => 0,
+                        'surface_exploitation' => 120.0,
+                        'surface_gla' => 120.0,
+                        'surface_accessible_public' => 120.0,
+                    ]
+                ];
+                $parties[] = [
+                    'nom' => 'Local ménage',
+                    'type' => 'commune',
+                    'activites_erp' => 'Entretien, nettoyage',
+                    'niveaux_data' => [
+                        'effectif_public' => 0,
+                        'personnel' => 2,
+                        'surface_exploitation' => 8.0,
+                        'surface_gla' => 8.0,
+                        'surface_accessible_public' => 0.0,
+                    ]
+                ];
                 break;
         }
 
         foreach ($parties as $partieData) {
-            Partie::create([
-                'niveau_id' => $niveau->id,
+            $partie = Partie::create([
+                'batiment_id' => $batiment->id,
                 'nom' => $partieData['nom'],
                 'type' => $partieData['type'],
-                'isICPE' => $partieData['isICPE'],
-                'isPrivative' => $partieData['isPrivative'],
+                'isICPE' => false,
+                'isPrivative' => $partieData['type'] === 'privative',
+                'activites_erp' => $partieData['activites_erp'],
             ]);
+
+            // Associer à ce niveau avec les données spécifiques
+            $pivotData = array_merge([
+                'libelle' => $partieData['nom'] . ' - ' . $niveau->nom,
+            ], $partieData['niveaux_data']);
+            
+            $partie->niveaux()->attach($niveau->id, $pivotData);
         }
     }
 
@@ -219,38 +335,54 @@ class BatimentsSeeder extends Seeder
                     ['nom' => 'Loge gardien', 'type' => 'commune'],
                 ];
             } else {
-                // Étages : appartements
-                $parties = [];
-                for ($appt = 1; $appt <= 6; $appt++) {
-                    $parties[] = [
-                        'nom' => "Appartement {$letter}{$etage}" . str_pad($appt, 2, '0', STR_PAD_LEFT),
-                        'type' => 'privative',
-                    ];
-                }
-                $parties[] = ['nom' => 'Palier', 'type' => 'commune'];
-                $parties[] = ['nom' => 'Gaine technique', 'type' => 'commune'];
+                // Étages : logements HAB (pas de parties privatives selon consignes)
+                $parties = [
+                    ['nom' => "Logements étage {$etage}", 'type' => 'commune'],
+                    ['nom' => 'Palier', 'type' => 'commune'],
+                    ['nom' => 'Gaine technique', 'type' => 'commune'],
+                ];
             }
 
             foreach ($parties as $partieData) {
                 $partie = Partie::create([
-                    'niveau_id' => $niveau->id,
+                    'batiment_id' => $batiment->id,
                     'nom' => $partieData['nom'],
                     'type' => $partieData['type'],
                     'isICPE' => false,
                     'isPrivative' => $partieData['type'] === 'privative',
+                    'activites_erp' => $partieData['type'] === 'privative' ? 'Logement résidentiel' : 'Parties communes résidentielles',
                 ]);
 
-                // Créer des lots pour les appartements
-                if ($partieData['type'] === 'privative') {
-                    $lot = Lot::create([
-                        'nom' => "Lot " . $partieData['nom'],
-                        'niveau' => $etage,
-                        'type' => 'Logement',
-                    ]);
-                    $partie->lots()->attach($lot->id, [
-                        'libelle' => 'Logement principal',
-                        'type' => 'Habitation',
-                    ]);
+                // Associer au niveau avec des données réalistes
+                $pivotData = [
+                    'libelle' => $partieData['nom'] . ' - ' . $niveau->nom,
+                    'effectif_public' => ($partieData['nom'] === 'Loge gardien') ? 1 : 
+                        (strpos($partieData['nom'], 'Logements') !== false ? 24 : 0), // 4 logements x 6 appts
+                    'personnel' => ($partieData['nom'] === 'Loge gardien') ? 1 : 0,
+                    'surface_exploitation' => ($partieData['nom'] === 'Hall d\'entrée') ? 100.0 : 
+                        (strpos($partieData['nom'], 'Logements') !== false ? 450.0 : 20.0), // 75m² x 6 appts
+                    'surface_gla' => ($partieData['nom'] === 'Hall d\'entrée') ? 100.0 : 
+                        (strpos($partieData['nom'], 'Logements') !== false ? 450.0 : 20.0),
+                    'surface_accessible_public' => ($partieData['nom'] === 'Hall d\'entrée') ? 100.0 : 
+                        (strpos($partieData['nom'], 'Logements') !== false ? 450.0 : 20.0),
+                ];
+                
+                $partie->niveaux()->attach($niveau->id, $pivotData);
+
+                // Créer des lots pour les logements HAB (parties communes contenant les logements)
+                if (strpos($partieData['nom'], 'Logements') !== false) {
+                    // Créer 6 lots individuels pour les logements de cet étage
+                    for ($appt = 1; $appt <= 6; $appt++) {
+                        $lot = Lot::create([
+                            'nom' => "Lot Appartement {$letter}{$etage}" . str_pad($appt, 2, '0', STR_PAD_LEFT),
+                            'niveau' => $etage,
+                            'type' => 'Logement',
+                        ]);
+                        $partie->lots()->attach($lot->id, [
+                            'libelle' => "Logement {$letter}{$etage}" . str_pad($appt, 2, '0', STR_PAD_LEFT),
+                            'type' => 'Habitation',
+                        ]);
+                    }
                 }
             }
         }
@@ -274,13 +406,44 @@ class BatimentsSeeder extends Seeder
         ];
 
         foreach ($parties as $partieData) {
-            Partie::create([
-                'niveau_id' => $niveau->id,
+            $partie = Partie::create([
+                'batiment_id' => $batiment->id,
                 'nom' => $partieData['nom'],
                 'type' => $partieData['type'],
                 'isICPE' => false,
                 'isPrivative' => $partieData['type'] === 'privative',
+                'activites_erp' => $partieData['type'] === 'privative' ? 'Commerce de détail' : 'Espaces communs commerciaux',
             ]);
+
+            // Associer au niveau avec des données réalistes
+            $pivotData = [
+                'libelle' => $partieData['nom'] . ' - ' . $niveau->nom,
+                'effectif_public' => $partieData['type'] === 'privative' ? 
+                    ($partieData['nom'] === 'Superette' ? 50 : 25) : 10,
+                'personnel' => $partieData['type'] === 'privative' ? 
+                    ($partieData['nom'] === 'Superette' ? 8 : 3) : 1,
+                'surface_exploitation' => $partieData['type'] === 'privative' ? 
+                    ($partieData['nom'] === 'Superette' ? 200.0 : 80.0) : 40.0,
+                'surface_gla' => $partieData['type'] === 'privative' ? 
+                    ($partieData['nom'] === 'Superette' ? 200.0 : 80.0) : 40.0,
+                'surface_accessible_public' => $partieData['type'] === 'privative' ? 
+                    ($partieData['nom'] === 'Superette' ? 180.0 : 70.0) : 40.0,
+            ];
+            
+            $partie->niveaux()->attach($niveau->id, $pivotData);
+
+            // Créer des lots pour les commerces
+            if ($partieData['type'] === 'privative') {
+                $lot = Lot::create([
+                    'nom' => "Lot " . $partieData['nom'],
+                    'niveau' => 0,
+                    'type' => 'Commerce',
+                ]);
+                $partie->lots()->attach($lot->id, [
+                    'libelle' => 'Commerce principal',
+                    'type' => 'Commerce',
+                ]);
+            }
         }
     }
 
@@ -502,13 +665,40 @@ class BatimentsSeeder extends Seeder
             ];
 
             foreach ($parties as $partieData) {
-                Partie::create([
-                    'niveau_id' => $niveau->id,
+                $partie = Partie::create([
+                    'batiment_id' => $batiment->id,
                     'nom' => $partieData['nom'],
                     'type' => $partieData['type'],
                     'isICPE' => false,
                     'isPrivative' => false,
+                    'activites_erp' => $partieData['nom'] === 'Zone principale' ? 'Activité principale' : 'Espaces techniques/circulation',
                 ]);
+
+                // Associer au niveau avec des données génériques
+                $pivotData = [
+                    'libelle' => $partieData['nom'] . ' - ' . $niveau->nom,
+                    'effectif_public' => $partieData['nom'] === 'Zone principale' ? 50 : 0,
+                    'personnel' => $partieData['nom'] === 'Local technique' ? 2 : 0,
+                    'surface_exploitation' => $partieData['nom'] === 'Zone principale' ? 200.0 : 50.0,
+                    'surface_gla' => $partieData['nom'] === 'Zone principale' ? 200.0 : 50.0,
+                    'surface_accessible_public' => $partieData['nom'] === 'Zone principale' ? 180.0 : 
+                        ($partieData['nom'] === 'Circulation' ? 50.0 : 0.0),
+                ];
+                
+                $partie->niveaux()->attach($niveau->id, $pivotData);
+
+                // Créer des lots pour les parties génériques
+                if ($partieData['type'] === 'commune') {
+                    $lot = Lot::create([
+                        'nom' => "Lot " . $partieData['nom'],
+                        'niveau' => $numeroEtage,
+                        'type' => 'Zone',
+                    ]);
+                    $partie->lots()->attach($lot->id, [
+                        'libelle' => $partieData['nom'] . ' - ' . $niveau->nom,
+                        'type' => 'Zone',
+                    ]);
+                }
             }
         }
     }
