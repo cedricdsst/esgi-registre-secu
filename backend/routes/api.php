@@ -43,6 +43,11 @@ Route::middleware('auth:sanctum')->group(function () {
         return app(NiveauController::class)->index(request()->merge(['batiment_id' => $batimentId]));
     });
     
+    // Routes pour les parties d'un bâtiment spécifique (nouvelle structure)
+    Route::get('batiments/{batiment}/parties', function ($batimentId) {
+        return app(PartieController::class)->index(request()->merge(['batiment_id' => $batimentId]));
+    });
+    
     // Routes pour les parties d'un niveau spécifique
     Route::get('niveaux/{niveau}/parties', function ($niveauId) {
         return app(PartieController::class)->index(request()->merge(['niveau_id' => $niveauId]));
@@ -51,6 +56,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes pour la gestion des lots dans les parties
     Route::post('parties/{partie}/lots/attach', [PartieController::class, 'attachLot']);
     Route::post('parties/{partie}/lots/detach', [PartieController::class, 'detachLot']);
+    Route::post('parties/{partie}/lots/transfer', [PartieController::class, 'transferLot']);
     
     // Futures routes pour vos applications
     Route::prefix('security-register')->group(function () {
