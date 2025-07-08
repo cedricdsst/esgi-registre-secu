@@ -46,9 +46,8 @@ class NiveauController extends Controller
             ->get();
         }
 
-        return response()->json([
-            'niveaux' => NiveauResource::collection($niveaux)
-        ]);
+        return response()->json( NiveauResource::collection($niveaux)
+        );
     }
 
     /**

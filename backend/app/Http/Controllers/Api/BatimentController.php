@@ -36,9 +36,8 @@ class BatimentController extends Controller
                 ->get();
         }
 
-        return response()->json([
-            'batiments' => BatimentResource::collection($batiments)
-        ]);
+        return response()->json(BatimentResource::collection($batiments)
+        );
     }
 
     /**

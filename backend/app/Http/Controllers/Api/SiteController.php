@@ -33,9 +33,8 @@ class SiteController extends Controller
                 ->get();
         }
 
-        return response()->json([
-            'sites' => SiteResource::collection($sites)
-        ]);
+        return response()->json(SiteResource::collection($sites)
+        );
     }
 
     /**

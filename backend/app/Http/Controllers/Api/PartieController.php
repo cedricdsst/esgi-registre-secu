@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\PartieResource;
 use App\Models\Partie;
 use App\Models\Niveau;
+use App\Models\Batiment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -18,28 +19,35 @@ class PartieController extends Controller
     {
         $user = Auth::user();
         
-        // Si un niveau_id est fourni, filtrer par niveau
-        $query = Partie::with(['niveau.batiment.site', 'lots']);
+        // Si un batiment_id est fourni, filtrer par bâtiment
+        $query = Partie::with(['batiment.site', 'niveaux', 'lots']);
         
+        if ($request->has('batiment_id')) {
+            $query->where('batiment_id', $request->batiment_id);
+        }
+        
+        // Si un niveau_id est fourni, filtrer par niveau via la relation pivot
         if ($request->has('niveau_id')) {
-            $query->where('niveau_id', $request->niveau_id);
+            $query->whereHas('niveaux', function ($q) use ($request) {
+                $q->where('niveaux.id', $request->niveau_id);
+            });
         }
         
         if ($user->hasRole('super-admin')) {
             $parties = $query->get();
         } else {
-            $parties = $query->whereHas('niveau.batiment.site', function ($q) use ($user) {
+            $parties = $query->whereHas('batiment.site', function ($q) use ($user) {
                 $q->where('client_id', $user->id)
                   ->orWhereHas('droitsSite', function ($sq) use ($user) {
                       $sq->where('utilisateur_id', $user->id)
                          ->where('lecture', true);
                   });
             })
-            ->orWhereHas('niveau.batiment.droitsBatiment', function ($q) use ($user) {
+            ->orWhereHas('batiment.droitsBatiment', function ($q) use ($user) {
                 $q->where('utilisateur_id', $user->id)
                   ->where('lecture', true);
             })
-            ->orWhereHas('niveau.droitsNiveau', function ($q) use ($user) {
+            ->orWhereHas('niveaux.droitsNiveau', function ($q) use ($user) {
                 $q->where('utilisateur_id', $user->id)
                   ->where('lecture', true);
             })
@@ -50,9 +58,9 @@ class PartieController extends Controller
             ->get();
         }
 
-        return response()->json([
-            'parties' => PartieResource::collection($parties)
-        ]);
+        return response()->json(
+            PartieResource::collection($parties)
+        );
     }
 
     /**
@@ -61,39 +69,79 @@ class PartieController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'niveau_id' => 'required|exists:niveaux,id',
+            'batiment_id' => 'required|exists:batiments,id',
+            'niveau_ids' => 'required|array',
+            'niveau_ids.*' => 'required|exists:niveaux,id',
+            'niveaux_data' => 'sometimes|array',
+            'niveaux_data.*.niveau_id' => 'required|exists:niveaux,id',
+            'niveaux_data.*.libelle' => 'sometimes|string|max:255',
+            'niveaux_data.*.effectif_public' => 'sometimes|integer|min:0',
+            'niveaux_data.*.personnel' => 'sometimes|integer|min:0',
+            'niveaux_data.*.surface_exploitation' => 'sometimes|numeric|min:0',
+            'niveaux_data.*.surface_gla' => 'sometimes|numeric|min:0',
+            'niveaux_data.*.surface_accessible_public' => 'sometimes|numeric|min:0',
             'nom' => 'required|string|max:255',
             'type' => 'required|in:privative,commune',
             'isICPE' => 'sometimes|boolean',
             'isPrivative' => 'sometimes|boolean',
+            'activites_erp' => 'sometimes|array',
         ]);
 
         $user = Auth::user();
-        $niveau = Niveau::with('batiment.site')->findOrFail($request->niveau_id);
+        $batiment = Batiment::with('site')->findOrFail($request->batiment_id);
 
-        // Vérifier les droits d'écriture sur le niveau, bâtiment ou site
+        // Vérifier les droits d'écriture sur le bâtiment ou site
         if (!$user->hasRole('super-admin') && 
-            $niveau->batiment->site->client_id !== $user->id && 
-            !$niveau->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$niveau->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$niveau->droitsNiveau()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
+            $batiment->site->client_id !== $user->id && 
+            !$batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
             return response()->json([
-                'message' => 'Vous n\'avez pas les droits pour créer une partie sur ce niveau.'
+                'message' => 'Vous n\'avez pas les droits pour créer une partie sur ce bâtiment.'
             ], 403);
         }
 
+        // Vérifier les règles métier selon la typologie du bâtiment
+        if ($batiment->type === 'HAB' && $request->type === 'privative') {
+            return response()->json([
+                'message' => 'Les parties privatives ne sont pas autorisées pour les bâtiments de type HAB.',
+                'error' => 'business_rule_violation'
+            ], 422);
+        }
+
         $partie = Partie::create([
-            'niveau_id' => $request->niveau_id,
+            'batiment_id' => $request->batiment_id,
             'nom' => $request->nom,
             'type' => $request->type,
             'isICPE' => $request->isICPE ?? false,
             'isPrivative' => $request->isPrivative ?? ($request->type === 'privative'),
+            'activites_erp' => $request->activites_erp ? json_encode($request->activites_erp) : null,
         ]);
 
-        return response()->json([
-            'message' => 'Partie créée avec succès',
-            'partie' => new PartieResource($partie->load(['niveau.batiment.site', 'lots']))
-        ], 201);
+        // Associer les niveaux avec leurs données spécifiques
+        $niveauxData = $request->niveaux_data ?? [];
+        
+        foreach ($request->niveau_ids as $niveauId) {
+            // Chercher les données spécifiques pour ce niveau
+            $niveauData = collect($niveauxData)->firstWhere('niveau_id', $niveauId);
+            
+            $pivotData = [
+                'libelle' => $niveauData['libelle'] ?? null,
+                'effectif_public' => $niveauData['effectif_public'] ?? null,
+                'personnel' => $niveauData['personnel'] ?? null,
+                'surface_exploitation' => $niveauData['surface_exploitation'] ?? null,
+                'surface_gla' => $niveauData['surface_gla'] ?? null,
+                'surface_accessible_public' => $niveauData['surface_accessible_public'] ?? null,
+            ];
+            
+            $partie->niveaux()->attach($niveauId, $pivotData);
+        }
+
+        // Mettre à jour le statut ICPE du bâtiment si nécessaire
+        $partie->updateBatimentICPE();
+
+        return response()->json(
+            new PartieResource($partie->load(['batiment.site', 'niveaux', 'lots']))
+        , 201);
     }
 
     /**
@@ -105,25 +153,28 @@ class PartieController extends Controller
 
         // Vérifier les droits d'accès
         if (!$user->hasRole('super-admin') && 
-            $partie->niveau->batiment->site->client_id !== $user->id && 
-            !$partie->niveau->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('lecture', true)->exists() &&
-            !$partie->niveau->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('lecture', true)->exists() &&
-            !$partie->niveau->droitsNiveau()->where('utilisateur_id', $user->id)->where('lecture', true)->exists() &&
+            $partie->batiment->site->client_id !== $user->id && 
+            !$partie->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('lecture', true)->exists() &&
+            !$partie->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('lecture', true)->exists() &&
+            !$partie->niveaux()->whereHas('droitsNiveau', function ($q) use ($user) {
+                $q->where('utilisateur_id', $user->id)->where('lecture', true);
+            })->exists() &&
             !$partie->droitsPartie()->where('utilisateur_id', $user->id)->where('lecture', true)->exists()) {
             return response()->json([
                 'message' => 'Vous n\'avez pas les droits pour consulter cette partie.'
             ], 403);
         }
 
-        return response()->json([
-            'partie' => new PartieResource($partie->load([
-                'niveau.batiment.site', 
+        return response()->json(
+            new PartieResource($partie->load([
+                'batiment.site', 
+                'niveaux',
                 'lots' => function ($query) {
                     $query->withPivot('libelle', 'type');
                 },
                 'droitsPartie.user'
             ]))
-        ]);
+        );
     }
 
     /**
@@ -142,14 +193,24 @@ class PartieController extends Controller
 
         // Vérifier les droits d'écriture
         if (!$user->hasRole('super-admin') && 
-            $partie->niveau->batiment->site->client_id !== $user->id && 
-            !$partie->niveau->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$partie->niveau->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$partie->niveau->droitsNiveau()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            $partie->batiment->site->client_id !== $user->id && 
+            !$partie->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->niveaux()->whereHas('droitsNiveau', function ($q) use ($user) {
+                $q->where('utilisateur_id', $user->id)->where('ecriture', true);
+            })->exists() &&
             !$partie->droitsPartie()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
             return response()->json([
                 'message' => 'Vous n\'avez pas les droits pour modifier cette partie.'
             ], 403);
+        }
+
+        // Vérifier les règles métier HAB lors de la modification
+        if ($request->has('type') && $request->type === 'privative' && $partie->batiment->type === 'HAB') {
+            return response()->json([
+                'message' => 'Les parties privatives ne sont pas autorisées pour les bâtiments de type HAB.',
+                'error' => 'business_rule_violation'
+            ], 422);
         }
 
         // Si le type change vers 'privative', mettre à jour isPrivative
@@ -164,7 +225,7 @@ class PartieController extends Controller
 
         return response()->json([
             'message' => 'Partie mise à jour avec succès',
-            'partie' => new PartieResource($partie->load(['niveau.batiment.site', 'lots']))
+            'partie' => new PartieResource($partie->load(['batiment.site', 'niveaux', 'lots']))
         ]);
     }
 
@@ -202,16 +263,31 @@ class PartieController extends Controller
 
         $user = Auth::user();
 
+        // Vérifier si les lots sont autorisés pour ce type de bâtiment
+        if ($partie->batiment->type === 'HAB') {
+            return response()->json([
+                'message' => 'Les lots ne sont pas disponibles pour les bâtiments de type HAB.',
+                'error' => 'lots_not_available_for_hab'
+            ], 422);
+        }
+
         // Vérifier les droits d'écriture
         if (!$user->hasRole('super-admin') && 
-            $partie->niveau->batiment->site->client_id !== $user->id && 
-            !$partie->niveau->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$partie->niveau->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$partie->niveau->droitsNiveau()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            $partie->batiment->site->client_id !== $user->id && 
+            !$partie->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
             !$partie->droitsPartie()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
             return response()->json([
                 'message' => 'Vous n\'avez pas les droits pour modifier cette partie.'
             ], 403);
+        }
+
+        // Vérifier les conflits de lots selon les consignes métier (avertissement seulement)
+        $conflicts = $partie->checkLotConflicts($request->lot_id);
+        $warnings = [];
+        
+        if (!empty($conflicts)) {
+            $warnings[] = 'Ce lot est déjà occupé par d\'autres parties : ' . implode(', ', $conflicts);
         }
 
         $pivotData = [];
@@ -224,12 +300,18 @@ class PartieController extends Controller
 
         $partie->lots()->attach($request->lot_id, $pivotData);
 
-        return response()->json([
+        $response = [
             'message' => 'Lot attaché avec succès à la partie',
             'partie' => new PartieResource($partie->load(['lots' => function ($query) {
                 $query->withPivot('libelle', 'type');
             }]))
-        ]);
+        ];
+
+        if (!empty($warnings)) {
+            $response['warnings'] = $warnings;
+        }
+
+        return response()->json($response);
     }
 
     /**
@@ -243,12 +325,22 @@ class PartieController extends Controller
 
         $user = Auth::user();
 
+        // Vérifier si les lots sont autorisés pour ce type de bâtiment
+        if ($partie->batiment->type === 'HAB') {
+            return response()->json([
+                'message' => 'Les lots ne sont pas disponibles pour les bâtiments de type HAB.',
+                'error' => 'lots_not_available_for_hab'
+            ], 422);
+        }
+
         // Vérifier les droits d'écriture
         if (!$user->hasRole('super-admin') && 
-            $partie->niveau->batiment->site->client_id !== $user->id && 
-            !$partie->niveau->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$partie->niveau->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-            !$partie->niveau->droitsNiveau()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            $partie->batiment->site->client_id !== $user->id && 
+            !$partie->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+            !$partie->niveaux()->whereHas('droitsNiveau', function ($q) use ($user) {
+                $q->where('utilisateur_id', $user->id)->where('ecriture', true);
+            })->exists() &&
             !$partie->droitsPartie()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
             return response()->json([
                 'message' => 'Vous n\'avez pas les droits pour modifier cette partie.'
