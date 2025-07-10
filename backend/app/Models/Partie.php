@@ -55,6 +55,29 @@ class Partie extends Model
                     ->withPivot('libelle', 'type')
                     ->withTimestamps();
     }
+
+    public function interventions()
+    {
+        return $this->belongsToMany(Intervention::class, 'intervention_partie')
+                    ->withTimestamps();
+    }
+
+    public function rapports()
+    {
+        return $this->belongsToMany(Rapport::class, 'rapport_partie')
+                    ->withTimestamps();
+    }
+
+    public function observations()
+    {
+        return $this->belongsToMany(Observation::class, 'observation_partie')
+                    ->withTimestamps();
+    }
+
+    public function inventaires()
+    {
+        return $this->hasMany(InventairePartie::class);
+    }
     
     /**
      * Vérifie si une partie privative est autorisée selon la typologie du bâtiment

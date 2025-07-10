@@ -32,9 +32,7 @@ class LotController extends Controller
                 ->get();
         }
 
-        return response()->json([
-            'lots' => LotResource::collection($lots)
-        ]);
+        return $lots;
     }
 
     /**
