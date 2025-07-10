@@ -6,6 +6,13 @@ use App\Http\Controllers\Api\BatimentController;
 use App\Http\Controllers\Api\NiveauController;
 use App\Http\Controllers\Api\PartieController;
 use App\Http\Controllers\Api\LotController;
+use App\Http\Controllers\Api\EntrepriseController;
+use App\Http\Controllers\Api\TypeInterventionController;
+use App\Http\Controllers\Api\InterventionController;
+use App\Http\Controllers\Api\TypeRapportController;
+use App\Http\Controllers\Api\RapportController;
+use App\Http\Controllers\Api\ObservationController;
+use App\Http\Controllers\Api\InventairePartieController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
@@ -57,6 +64,38 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('parties/{partie}/lots/attach', [PartieController::class, 'attachLot']);
     Route::post('parties/{partie}/lots/detach', [PartieController::class, 'detachLot']);
     Route::post('parties/{partie}/lots/transfer', [PartieController::class, 'transferLot']);
+    
+    // Routes pour les entreprises
+    Route::apiResource('entreprises', EntrepriseController::class);
+    
+    // Routes pour les types d'interventions
+    Route::apiResource('types-interventions', TypeInterventionController::class);
+    
+    // Routes pour les interventions
+    Route::apiResource('interventions', InterventionController::class);
+    Route::post('interventions/{intervention}/sign', [InterventionController::class, 'sign']);
+    
+    // Routes pour les types de rapports
+    Route::apiResource('types-rapports', TypeRapportController::class);
+    
+    // Routes pour les rapports
+    Route::apiResource('rapports', RapportController::class);
+    Route::post('rapports/{rapport}/sign', [RapportController::class, 'sign']);
+    Route::post('rapports/{rapport}/archive', [RapportController::class, 'archive']);
+    
+    // Routes pour les observations
+    Route::apiResource('observations', ObservationController::class);
+    Route::post('observations/create-follow-up-intervention', [ObservationController::class, 'createFollowUpIntervention']);
+    
+    // Routes pour les fichiers d'observations
+    Route::post('observations/{observation}/files', [ObservationController::class, 'uploadFile']);
+    Route::get('observations/{observation}/files/{fichier_id}', [ObservationController::class, 'downloadFile']);
+    Route::delete('observations/{observation}/files/{fichier_id}', [ObservationController::class, 'deleteFile']);
+    
+    // Routes pour les inventaires par partie
+    Route::apiResource('inventaires-partie', InventairePartieController::class);
+    Route::get('parties/{partie}/inventaires', [InventairePartieController::class, 'getByPartie']);
+    Route::post('inventaires-partie/{inventairePartie}/sync', [InventairePartieController::class, 'syncWithApi']);
     
     // Futures routes pour vos applications
     Route::prefix('security-register')->group(function () {
