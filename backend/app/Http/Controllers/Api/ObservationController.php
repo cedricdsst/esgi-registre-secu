@@ -175,8 +175,10 @@ class ObservationController extends Controller
         // Générer un nom unique pour le stockage
         $nomStockage = uniqid() . '_' . time() . '.' . $file->getClientOriginalExtension();
         
-        // Stocker le fichier temporairement
-        $cheminStockage = $file->storeAs('private/observations', $nomStockage);
+        // Stocker le fichier (Laravel stocke dans storage/app/private/observations/)
+        $cheminStockage = $file->storeAs('observations', $nomStockage);
+        
+        // Le fichier se trouve réellement dans storage/app/private/observations/
         $cheminComplet = storage_path('app/private/observations/' . $nomStockage);
         
         // Compression selon le type de fichier
@@ -235,6 +237,7 @@ class ObservationController extends Controller
     {
         $fichier = $observation->fichiers()->findOrFail($fichier_id);
         
+        // Utiliser le chemin correct découvert
         $path = storage_path('app/private/observations/' . $fichier->nom_stockage);
         
         if (!file_exists($path)) {
@@ -248,7 +251,7 @@ class ObservationController extends Controller
     {
         $fichier = $observation->fichiers()->findOrFail($fichier_id);
         
-        // Supprimer le fichier du système de fichiers
+        // Utiliser le chemin correct découvert
         $path = storage_path('app/private/observations/' . $fichier->nom_stockage);
         if (file_exists($path)) {
             unlink($path);
@@ -432,50 +435,89 @@ class ObservationController extends Controller
             $tailleOriginale = filesize($cheminFichier);
             $details['etapes'][] = "PDF original: " . $this->formatBytes($tailleOriginale);
             
-            // Vérifier si Ghostscript est disponible
+            // Vérifier si Ghostscript est disponible avec diagnostic
             $gsCommand = $this->findGhostscriptCommand();
             if (!$gsCommand) {
-                // Fallback: juste copier le fichier sans compression
-                $details['etapes'][] = "Ghostscript non disponible, aucune compression PDF";
+                // Test de diagnostic plus poussé avec nettoyage UTF-8
+                $testCommands = ['gswin64', 'gswin64c', 'gs'];
+                $diagnosticInfo = [];
+                
+                foreach ($testCommands as $testCmd) {
+                    $output = [];
+                    $returnCode = 0;
+                    exec("$testCmd --version 2>&1", $output, $returnCode);
+                    
+                    // Nettoyer la sortie pour éviter les problèmes UTF-8
+                    $cleanOutput = array_map([$this, 'cleanUtf8String'], $output);
+                    
+                    $diagnosticInfo[$testCmd] = [
+                        'return_code' => $returnCode,
+                        'output' => $this->cleanUtf8String(implode(' ', $cleanOutput))
+                    ];
+                }
+                
+                $details['etapes'][] = "Ghostscript non disponible";
+                $details['diagnostic_ghostscript'] = $diagnosticInfo;
                 return [false, $details];
             }
             
+            $details['etapes'][] = "Ghostscript détecté: $gsCommand";
+            
             $fichierTemp = $cheminFichier . '.compressed.pdf';
             
-            // Commande Ghostscript pour compression
+            // Commande Ghostscript pour compression avec gestion d'erreurs Windows
             $command = sprintf(
-                '%s -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH -sOutputFile=%s %s',
+                '"%s" -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH -sOutputFile="%s" "%s"',
                 $gsCommand,
-                escapeshellarg($fichierTemp),
-                escapeshellarg($cheminFichier)
+                $fichierTemp,
+                $cheminFichier
             );
+            
+            $details['etapes'][] = "Commande préparée";
             
             $output = [];
             $returnCode = 0;
-            exec($command, $output, $returnCode);
+            
+            // Rediriger les erreurs vers stdout pour capturer tout
+            exec($command . ' 2>&1', $output, $returnCode);
+            
+            // Nettoyer la sortie pour éviter les problèmes UTF-8
+            $cleanOutput = array_map([$this, 'cleanUtf8String'], $output);
+            
+            $details['etapes'][] = "Code retour: $returnCode";
+            if (!empty($cleanOutput)) {
+                $details['etapes'][] = "Sortie: " . $this->cleanUtf8String(implode(' ', $cleanOutput));
+            }
             
             if ($returnCode === 0 && file_exists($fichierTemp)) {
                 $tailleCompresse = filesize($fichierTemp);
                 
                 // Ne garder la version compressée que si elle est plus petite
-                if ($tailleCompresse < $tailleOriginale) {
+                if ($tailleCompresse < $tailleOriginale && $tailleCompresse > 0) {
                     rename($fichierTemp, $cheminFichier);
                     $details['etapes'][] = "PDF compressé: " . $this->formatBytes($tailleCompresse);
                     $details['reduction'] = round((($tailleOriginale - $tailleCompresse) / $tailleOriginale) * 100, 1) . '%';
                     return [true, $details];
                 } else {
-                    unlink($fichierTemp);
+                    if (file_exists($fichierTemp)) {
+                        unlink($fichierTemp);
+                    }
                     $details['etapes'][] = "Compression PDF sans gain, fichier original conservé";
+                    $details['etapes'][] = "Taille originale: " . $this->formatBytes($tailleOriginale) . ", Taille compressée: " . $this->formatBytes($tailleCompresse);
                     return [false, $details];
                 }
             } else {
                 $details['etapes'][] = "Erreur lors de la compression PDF";
+                $details['etapes'][] = "Fichier temporaire existe: " . (file_exists($fichierTemp) ? 'Oui' : 'Non');
+                if (file_exists($fichierTemp)) {
+                    unlink($fichierTemp); // Nettoyer le fichier temporaire
+                }
                 return [false, $details];
             }
             
         } catch (Exception $e) {
             Log::error('Erreur compression PDF: ' . $e->getMessage());
-            return [false, ['erreur' => $e->getMessage()]];
+            return [false, ['erreur' => $this->cleanUtf8String($e->getMessage())]];
         }
     }
 
@@ -485,30 +527,60 @@ class ObservationController extends Controller
     private function findGhostscriptCommand()
     {
         // Commandes possibles selon l'OS
-        $possibleCommands = [
-            'gs',           // Unix/Linux/Mac
-            'gswin64',      // Windows 64-bit (votre cas)
-            'gswin64c',     // Windows 64-bit console
-            'gswin32c',     // Windows 32-bit console
-        ];
+        if (PHP_OS_FAMILY === 'Windows') {
+            $possibleCommands = [
+                'gswin64c',
+                'gswin32c',
+                '"C:\\Program Files\\gs\\gs10.05.1\\bin\\gswin64c.exe"',
+                '"C:\\Program Files\\gs\\gs10.04.0\\bin\\gswin64c.exe"',
+                '"C:\\Program Files\\gs\\gs10.03.1\\bin\\gswin64c.exe"',
+            ];
+        } else {
+            $possibleCommands = ['gs'];
+        }
         
         foreach ($possibleCommands as $cmd) {
             $output = [];
             $returnCode = 0;
             
-            // Tester la commande selon l'OS
             if (PHP_OS_FAMILY === 'Windows') {
-                exec("where $cmd 2>nul", $output, $returnCode);
+                // Pour Windows : ghostscript s'exécute mais attend des commandes
+                // On lui donne une commande quit immédiatement
+                $testCommand = "echo quit | $cmd 2>nul";
+                exec($testCommand, $output, $returnCode);
+                
+                // Si on obtient une sortie contenant "GPL Ghostscript", c'est bon
+                $outputString = implode(' ', $output);
+                if (strpos($outputString, 'GPL Ghostscript') !== false || 
+                    strpos($outputString, 'Ghostscript') !== false) {
+                    return $cmd;
+                }
             } else {
-                exec("which $cmd 2>/dev/null", $output, $returnCode);
-            }
-            
-            if ($returnCode === 0) {
-                return $cmd;
+                // Pour Unix/Linux, utiliser --version
+                exec("$cmd --version 2>/dev/null", $output, $returnCode);
+                if ($returnCode === 0 && !empty($output)) {
+                    return $cmd;
+                }
             }
         }
         
         return null;
+    }
+
+    /**
+     * Nettoie une chaîne pour éviter les problèmes d'encodage JSON
+     */
+    private function cleanUtf8String($string)
+    {
+        // Convertir en UTF-8 et supprimer les caractères invalides
+        $cleaned = mb_convert_encoding($string, 'UTF-8', 'UTF-8');
+        $cleaned = mb_substitute_character(0x0020); // Remplacer par espace
+        $cleaned = mb_convert_encoding($cleaned, 'UTF-8', 'UTF-8');
+        
+        // Supprimer les caractères de contrôle sauf \n et \t
+        $cleaned = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $cleaned);
+        
+        return $cleaned;
     }
 
     /**
