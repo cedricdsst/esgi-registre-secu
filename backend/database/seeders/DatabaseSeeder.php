@@ -34,6 +34,30 @@ class DatabaseSeeder extends Seeder
         $this->command->info('🔐 Attribution des droits d\'accès...');
         $this->call(DroitsSeeder::class);
         
+        // 7. Types d'interventions
+        $this->command->info('⚙️ Création des types d\'interventions...');
+        $this->call(TypesInterventionsSeeder::class);
+        
+        // 8. Entreprises
+        $this->command->info('🏢 Création des entreprises...');
+        $this->call(EntreprisesSeeder::class);
+        
+        // 9. Types de rapports
+        $this->command->info('📋 Création des types de rapports...');
+        $this->call(TypesRapportsSeeder::class);
+        
+        // 10. Interventions
+        $this->command->info('🔧 Création des interventions...');
+        $this->call(InterventionsSeeder::class);
+        
+        // 11. Rapports
+        $this->command->info('📄 Création des rapports...');
+        $this->call(RapportsSeeder::class);
+        
+        // 12. Observations
+        $this->command->info('👁️ Création des observations...');
+        $this->call(ObservationsSeeder::class);
+        
         $this->command->info('✅ Seeding terminé avec succès !');
         $this->command->info('');
         $this->command->info('🎯 Base de données prête pour les tests');
@@ -44,5 +68,11 @@ class DatabaseSeeder extends Seeder
         $this->command->info('   - Niveaux et parties détaillés');
         $this->command->info('   - Droits d\'accès granulaires');
         $this->command->info('   - Typologies réglementaires complètes');
+        $this->command->info('   - 3 types d\'interventions par défaut');
+        $this->command->info('   - 10 entreprises avec organismes agréés');
+        $this->command->info('   - 16 types de rapports réglementaires');
+        $this->command->info('   - Interventions d\'exemple avec différents statuts');
+        $this->command->info('   - Rapports liés aux interventions');
+        $this->command->info('   - Observations détaillées avec priorités');
     }
 }
