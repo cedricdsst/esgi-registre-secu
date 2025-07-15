@@ -27,11 +27,18 @@ Route::get('/', function () {
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
+// Routes pour la configuration du mot de passe (sans authentification)
+Route::post('/password/setup', [AuthController::class, 'setupPassword']);
+Route::post('/password/verify-token', [AuthController::class, 'verifyPasswordToken'])->name('password.setup');
+
 // Routes protégées (avec authentification)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/logout-all', [AuthController::class, 'logoutAll']);
+    
+    // Route pour l'inscription par super admin
+    Route::post('/admin/register', [AuthController::class, 'adminRegister']);
     
     // Routes pour la gestion des sites et bâtiments
     Route::apiResource('sites', SiteController::class);
@@ -64,6 +71,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('parties/{partie}/lots/attach', [PartieController::class, 'attachLot']);
     Route::post('parties/{partie}/lots/detach', [PartieController::class, 'detachLot']);
     Route::post('parties/{partie}/lots/transfer', [PartieController::class, 'transferLot']);
+    
+    // Route pour assigner un propriétaire à une ou plusieurs parties
+    Route::post('parties/assign-owner', [PartieController::class, 'assignOwner']);
     
     // Routes pour les entreprises
     Route::apiResource('entreprises', EntrepriseController::class);

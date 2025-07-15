@@ -7,6 +7,7 @@ use App\Http\Resources\PartieResource;
 use App\Models\Partie;
 use App\Models\Niveau;
 use App\Models\Batiment;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -351,6 +352,58 @@ class PartieController extends Controller
 
         return response()->json([
             'message' => 'Lot détaché avec succès de la partie'
+        ]);
+    }
+
+    /**
+     * Assign an owner to one or multiple parties
+     */
+    public function assignOwner(Request $request)
+    {
+        $request->validate([
+            'owner_id' => 'required|exists:users,id',
+            'partie_ids' => 'required|array|min:1',
+            'partie_ids.*' => 'required|exists:parties,id',
+        ]);
+
+        $user = Auth::user();
+        $partieIds = $request->partie_ids;
+
+        // Récupérer toutes les parties pour vérifier les droits
+        $parties = Partie::with('batiment.site')->whereIn('id', $partieIds)->get();
+
+        // Vérifier que toutes les parties existent
+        if ($parties->count() !== count($partieIds)) {
+            return response()->json([
+                'message' => 'Une ou plusieurs parties n\'existent pas.'
+            ], 404);
+        }
+
+        // Vérifier les droits d'écriture pour chaque partie
+        foreach ($parties as $partie) {
+            if (!$user->hasRole('super-admin') && 
+                $partie->batiment->site->client_id !== $user->id && 
+                !$partie->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+                !$partie->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
+                !$partie->niveaux()->whereHas('droitsNiveau', function ($q) use ($user) {
+                    $q->where('utilisateur_id', $user->id)->where('ecriture', true);
+                })->exists() &&
+                !$partie->droitsPartie()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
+                return response()->json([
+                    'message' => "Vous n'avez pas les droits pour modifier la partie \"{$partie->nom}\"."
+                ], 403);
+            }
+        }
+
+        // Assigner l'owner à toutes les parties
+        Partie::whereIn('id', $partieIds)->update(['owner_id' => $request->owner_id]);
+
+        // Recharger les parties avec les nouvelles données
+        $updatedParties = Partie::with(['batiment.site', 'owner'])->whereIn('id', $partieIds)->get();
+
+        return response()->json([
+            'message' => 'Propriétaire assigné avec succès aux parties',
+            'parties' => PartieResource::collection($updatedParties)
         ]);
     }
 }
