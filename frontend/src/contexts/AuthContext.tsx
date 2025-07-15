@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem('authToken');
                 const storedUser = localStorage.getItem('user');
 
                 if (token && storedUser) {
@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 }
             } catch (error) {
                 // Token invalide, nettoyer les données
-                localStorage.removeItem('token');
+                localStorage.removeItem('authToken');
                 localStorage.removeItem('user');
                 setUser(null);
             } finally {
@@ -61,7 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const login = async (data: LoginData) => {
         try {
             const response = await authService.login(data.email, data.password);
-            localStorage.setItem('token', response.token);
+            localStorage.setItem('authToken', response.token);
             localStorage.setItem('user', JSON.stringify(response.user));
             setUser(response.user);
         } catch (error) {
@@ -76,7 +76,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 role: data.role || 'user'
             };
             const response = await authService.register(registerData);
-            localStorage.setItem('token', response.token);
+            localStorage.setItem('authToken', response.token);
             localStorage.setItem('user', JSON.stringify(response.user));
             setUser(response.user);
         } catch (error) {
@@ -91,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Même si la déconnexion échoue côté serveur, on nettoie côté client
             console.error('Erreur lors de la déconnexion:', error);
         } finally {
-            localStorage.removeItem('token');
+            localStorage.removeItem('authToken');
             localStorage.removeItem('user');
             setUser(null);
         }
@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             localStorage.setItem('user', JSON.stringify(userData));
         } catch (error) {
             // Si on ne peut pas rafraîchir, déconnecter
-            localStorage.removeItem('token');
+            localStorage.removeItem('authToken');
             localStorage.removeItem('user');
             setUser(null);
             throw error;

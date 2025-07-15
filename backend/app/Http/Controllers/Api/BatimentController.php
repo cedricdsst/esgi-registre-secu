@@ -89,6 +89,7 @@ class BatimentController extends Controller
             $batiment->site->client_id !== $user->id && 
             !$batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('lecture', true)->exists() &&
             !$batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('lecture', true)->exists()) {
+            
             return response()->json([
                 'message' => 'Vous n\'avez pas les droits pour consulter ce bâtiment.'
             ], 403);
@@ -98,14 +99,18 @@ class BatimentController extends Controller
             'batiment' => new BatimentResource($batiment->load([
                 'site', 
                 'niveaux.parties', 
-                'erps.erpType', 
-                'ighs.ighClass', 
-                'habs.habFamille', 
+                'parties.lots', 
+                'parties.niveaux',
+                'erps', 
+                'ighs', 
+                'habs', 
                 'bups',
-                'droitsBatiment.user'
+                'droitsBatiment'
             ]))
         ]);
     }
+
+
 
     /**
      * Update the specified resource in storage.

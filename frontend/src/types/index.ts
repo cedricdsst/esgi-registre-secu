@@ -111,9 +111,8 @@ export interface Partie {
     id: number;
     nom: string;
     batiment_id: number;
-    type: 'privatives' | 'communes';
-    description?: string;
-    est_icpe: boolean;
+    type: 'privative' | 'commune';
+    isICPE: boolean;
     effectif_public?: number;
     effectif_personnel?: number;
     surface_exploitation?: number;
@@ -129,8 +128,7 @@ export interface Partie {
 export interface PartieFormData {
     nom: string;
     batiment_id: number;
-    type: 'privatives' | 'communes';
-    description?: string;
+    type: 'privative' | 'commune';
     est_icpe?: boolean;
     effectif_public?: number;
     effectif_personnel?: number;

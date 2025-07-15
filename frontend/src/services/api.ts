@@ -13,7 +13,7 @@ const api = axios.create({
 // Intercepteur pour ajouter le token d'authentification
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('authToken');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -29,7 +29,7 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            localStorage.removeItem('token');
+            localStorage.removeItem('authToken');
             localStorage.removeItem('user');
             window.location.href = '/login';
         }
@@ -94,6 +94,7 @@ export const buildingService = {
 
     getById: (id: number): Promise<Building> =>
         api.get(`/batiments/${id}`).then(res => {
+            // L'API retourne { batiment: BatimentResource }
             const building = res.data.batiment;
             return {
                 ...building,

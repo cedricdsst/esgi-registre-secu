@@ -352,7 +352,7 @@ const SiteDetail: React.FC = () => {
 
                                     <div className="flex items-center gap-2 ml-4">
                                         <Link
-                                            to={`/sites/${site.id}/buildings/${building.id}`}
+                                            to={`/sites/${site.id}/batiments/${building.id}`}
                                             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                                         >
                                             Voir détails

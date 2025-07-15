@@ -61,6 +61,14 @@ class PartieResource extends JsonResource
             'lots' => LotResource::collection($this->whenLoaded('lots')),
             'droits_partie' => DroitsPartieResource::collection($this->whenLoaded('droitsPartie')),
             
+            // Effectifs totaux calculés à partir des niveaux
+            'effectif_public' => $this->whenLoaded('niveaux', function () {
+                return $this->niveaux->sum('pivot.effectif_public') ?: 0;
+            }),
+            'effectif_personnel' => $this->whenLoaded('niveaux', function () {
+                return $this->niveaux->sum('pivot.personnel') ?: 0;
+            }),
+            
             // Métadonnées
             'stats' => $this->when($request->include_stats, function () {
                 return [
