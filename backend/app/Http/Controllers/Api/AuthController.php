@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+// use App\Models\PasswordSetupToken; // Non utilisé - redirection directe vers /login
+use App\Notifications\AdminUserCreated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -169,4 +172,81 @@ class AuthController extends Controller
             'message' => 'Déconnexion de tous les appareils réussie'
         ]);
     }
+
+    /**
+     * Inscription d'un utilisateur par le super admin
+     */
+    public function adminRegister(Request $request)
+    {
+        // Vérifier que l'utilisateur connecté est super-admin
+        if (!$request->user()->hasRole('super-admin')) {
+            return response()->json([
+                'message' => 'Accès interdit. Seuls les super-admins peuvent créer des comptes utilisateurs.'
+            ], 403);
+        }
+
+        $request->validate([
+            'nom' => 'required|string|max:255',
+            'prenom' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'organisation' => 'required|string|max:255',
+            'role' => 'required|string|in:super-admin,admin,client-admin,user,viewer,user-entreprise,user-intervenant',
+        ], [
+            'nom.required' => 'Le nom est requis.',
+            'prenom.required' => 'Le prénom est requis.',
+            'email.required' => 'L\'email est requis.',
+            'email.email' => 'Le format de l\'email est invalide.',
+            'email.unique' => 'Cet email est déjà utilisé.',
+            'organisation.required' => 'L\'organisation est requise.',
+            'role.required' => 'Le rôle est requis.',
+            'role.in' => 'Le rôle doit être user, admin ou super-admin.',
+        ]);
+
+        try {
+            // Générer un mot de passe temporaire lisible
+            $temporaryPassword = 'Temp' . rand(1000, 9999) . '!';
+            
+            // Créer l'utilisateur avec le mot de passe temporaire
+            $user = User::create([
+                'nom' => $request->nom,
+                'prenom' => $request->prenom,
+                'email' => $request->email,
+                'password' => Hash::make($temporaryPassword),
+                'organisation' => $request->organisation,
+                'role' => $request->role,
+                'email_verified_at' => now(), // Email vérifié par défaut pour les comptes admin
+            ]);
+
+            // Assigner le rôle Spatie
+            $user->assignRole($request->role);
+
+            // Créer un token de validation simple (pour sécuriser le lien)
+            // Envoyer l'email avec le mot de passe temporaire
+            $adminName = $request->user()->prenom . ' ' . $request->user()->nom;
+            $user->notify(new AdminUserCreated(null, $adminName, $temporaryPassword));
+
+            return response()->json([
+                'message' => 'Utilisateur créé avec succès. Un email a été envoyé avec les informations de connexion.',
+                'user' => [
+                    'id' => $user->id,
+                    'nom' => $user->nom,
+                    'prenom' => $user->prenom,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'organisation' => $user->organisation,
+                    'created_by' => $adminName,
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la création de l\'utilisateur.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // Note: Méthode validateWelcomeToken supprimée - redirection directe vers /login
+
+
 }
