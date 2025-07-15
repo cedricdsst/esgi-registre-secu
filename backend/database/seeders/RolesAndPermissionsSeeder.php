@@ -96,6 +96,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $clientAdmin = Role::firstOrCreate(['name' => 'client-admin']);
         $user = Role::firstOrCreate(['name' => 'user']);
         $viewer = Role::firstOrCreate(['name' => 'viewer']);
+        $userEntreprise = Role::firstOrCreate(['name' => 'user-entreprise']);
+        $userIntervenant = Role::firstOrCreate(['name' => 'user-intervenant']);
 
         // Nettoyer les permissions existantes des rôles
         $superAdmin->permissions()->detach();
@@ -103,6 +105,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $clientAdmin->permissions()->detach();
         $user->permissions()->detach();
         $viewer->permissions()->detach();
+        $userEntreprise->permissions()->detach();
+        $userIntervenant->permissions()->detach();
 
         // Assigner toutes les permissions au super-admin
         $superAdmin->givePermissionTo(Permission::all());
@@ -195,8 +199,52 @@ class RolesAndPermissionsSeeder extends Seeder
             'equipment_base.view',
         ]);
 
+        // Permissions pour l'utilisateur entreprise
+        $userEntreprise->givePermissionTo([
+            // CRUD de base
+            'view_sites',
+            'view_batiments',
+            'view_niveaux',
+            'view_parties',
+            'edit_sites',
+            'edit_batiments',
+            'edit_niveaux',
+            'edit_parties',
+            
+            // Permissions métier
+            'security_register.view',
+            'security_register.create',
+            'security_register.edit',
+            'security_register.export',
+            'sites.manage',
+            'buildings.manage',
+            'parts.manage',
+            'interventions.manage',
+            'reports.manage',
+            'equipment_base.view',
+            'equipment_base.create',
+            'equipment_base.edit',
+        ]);
+
+        // Permissions pour l'utilisateur intervenant
+        $userIntervenant->givePermissionTo([
+            // CRUD limité (pas de création/suppression)
+            'view_sites',
+            'view_batiments',
+            'view_niveaux',
+            'view_parties',
+            
+            // Permissions métier limitées
+            'security_register.view',
+            'security_register.create',
+            'security_register.edit',
+            'interventions.manage',
+            'reports.manage',
+            'equipment_base.view',
+        ]);
+
         $this->command->info('Rôles et permissions créés avec succès !');
-        $this->command->info('- 5 rôles créés : super-admin, admin, client-admin, user, viewer');
+        $this->command->info('- 7 rôles créés : super-admin, admin, client-admin, user, viewer, user-entreprise, user-intervenant');
         $this->command->info('- ' . count($allPermissions) . ' permissions créées (CRUD + métier)');
     }
 }

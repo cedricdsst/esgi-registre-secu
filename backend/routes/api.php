@@ -27,9 +27,7 @@ Route::get('/', function () {
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
-// Routes pour la configuration du mot de passe (sans authentification)
-Route::post('/password/setup', [AuthController::class, 'setupPassword']);
-Route::post('/password/verify-token', [AuthController::class, 'verifyPasswordToken'])->name('password.setup');
+// Note: Token de bienvenue supprimé, redirection directe vers /login
 
 // Routes protégées (avec authentification)
 Route::middleware('auth:sanctum')->group(function () {

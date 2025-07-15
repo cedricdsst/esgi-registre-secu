@@ -26,6 +26,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'role',         // ← Nouveau
         'organisation', // ← Nouveau
+         'email_verified_at', // ← Ajout pour les comptes créés par admin
     ];
 
     protected $hidden = [
