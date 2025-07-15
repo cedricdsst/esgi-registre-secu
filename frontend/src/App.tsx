@@ -11,6 +11,7 @@ import Sites from './pages/Sites';
 import SiteDetail from './pages/SiteDetail';
 import Buildings from './pages/Buildings';
 import BatimentDetail from './pages/BatimentDetail';
+import UserManagement from './pages/UserManagement';
 
 function App() {
   return (
@@ -68,6 +69,15 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <BatimentDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            {/* Route de gestion des utilisateurs (super-admin uniquement) */}
+            <Route path="/users" element={
+              <ProtectedRoute>
+                <Layout>
+                  <UserManagement />
                 </Layout>
               </ProtectedRoute>
             } />

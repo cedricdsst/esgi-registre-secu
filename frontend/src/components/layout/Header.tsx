@@ -7,7 +7,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -24,7 +24,9 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       'admin': 'Admin',
       'client-admin': 'Admin Client',
       'user': 'Utilisateur',
-      'viewer': 'Lecteur'
+      'viewer': 'Lecteur',
+      'user-entreprise': 'Utilisateur Entreprise',
+      'user-intervenant': 'Utilisateur Intervenant'
     };
     return roleMap[role] || role;
   };
@@ -40,22 +42,24 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             <Menu size={20} />
           </button>
           <h1 className="text-xl font-semibold text-gray-800">
-            Registre de Sécurité - AXIGNIS
+            Registre de Sécurité
           </h1>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-sm font-medium text-gray-900">
-              {user?.prenom} {user?.nom}
+          {!isLoading && user && (
+            <div className="text-right">
+              <div className="text-sm font-medium text-gray-900">
+                {user.prenom} {user.nom}
+              </div>
+              <div className="text-xs text-gray-500">
+                {user.organisation}
+              </div>
+              <div className="text-xs text-blue-600 font-medium">
+                {formatRole(user.role)}
+              </div>
             </div>
-            <div className="text-xs text-gray-500">
-              {user?.organisation}
-            </div>
-            <div className="text-xs text-blue-600 font-medium">
-              {user?.role && formatRole(user.role)}
-            </div>
-          </div>
+          )}
 
           <button
             onClick={handleLogout}

@@ -356,54 +356,162 @@ class PartieController extends Controller
     }
 
     /**
-     * Assign an owner to one or multiple parties
+     * Récupérer les utilisateurs entreprise pour l'assignation
      */
-    public function assignOwner(Request $request)
+    public function getEntrepriseUsers(Request $request)
     {
+        $user = Auth::user();
+        
+        // Seuls les super-admins peuvent voir tous les utilisateurs entreprise
+        if (!$user->hasRole('super-admin')) {
+            return response()->json([
+                'message' => 'Accès interdit. Seuls les super-admins peuvent gérer les assignations.'
+            ], 403);
+        }
+
+        try {
+            // Récupérer tous les utilisateurs avec le rôle 'user-entreprise'
+            $entrepriseUsers = User::whereHas('roles', function($query) {
+                $query->where('name', 'user-entreprise');
+            })->select('id', 'nom', 'prenom', 'email', 'organisation')
+              ->orderBy('nom')
+              ->get();
+
+            return response()->json($entrepriseUsers);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des utilisateurs entreprise.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Assigner un propriétaire à une partie
+     */
+    public function assignOwner(Request $request, Partie $partie)
+    {
+        $user = Auth::user();
+        
+        // Vérifier les droits d'accès
+        if (!$user->hasRole('super-admin')) {
+            return response()->json([
+                'message' => 'Accès interdit. Seuls les super-admins peuvent assigner des propriétaires.'
+            ], 403);
+        }
+
+        $request->validate([
+            'owner_id' => 'nullable|exists:users,id',
+        ]);
+
+        try {
+            // Vérifier que l'utilisateur assigné est bien un utilisateur entreprise
+            if ($request->owner_id) {
+                $owner = User::findOrFail($request->owner_id);
+                if (!$owner->hasRole('user-entreprise')) {
+                    return response()->json([
+                        'message' => 'L\'utilisateur doit avoir le rôle "user-entreprise" pour être assigné comme propriétaire.'
+                    ], 422);
+                }
+            }
+
+            $partie->owner_id = $request->owner_id;
+            $partie->save();
+
+            return response()->json([
+                'message' => $request->owner_id ? 'Propriétaire assigné avec succès' : 'Propriétaire retiré avec succès',
+                'partie' => new PartieResource($partie->load(['owner', 'batiment.site', 'niveaux', 'lots']))
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de l\'assignation du propriétaire.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Assigner en masse des propriétaires à plusieurs parties
+     */
+    public function assignOwnerBulk(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Vérifier les droits d'accès
+        if (!$user->hasRole('super-admin')) {
+            return response()->json([
+                'message' => 'Accès interdit. Seuls les super-admins peuvent assigner des propriétaires.'
+            ], 403);
+        }
+
         $request->validate([
             'owner_id' => 'required|exists:users,id',
             'partie_ids' => 'required|array|min:1',
-            'partie_ids.*' => 'required|exists:parties,id',
+            'partie_ids.*' => 'exists:parties,id',
         ]);
 
-        $user = Auth::user();
-        $partieIds = $request->partie_ids;
-
-        // Récupérer toutes les parties pour vérifier les droits
-        $parties = Partie::with('batiment.site')->whereIn('id', $partieIds)->get();
-
-        // Vérifier que toutes les parties existent
-        if ($parties->count() !== count($partieIds)) {
-            return response()->json([
-                'message' => 'Une ou plusieurs parties n\'existent pas.'
-            ], 404);
-        }
-
-        // Vérifier les droits d'écriture pour chaque partie
-        foreach ($parties as $partie) {
-            if (!$user->hasRole('super-admin') && 
-                $partie->batiment->site->client_id !== $user->id && 
-                !$partie->batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-                !$partie->batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists() &&
-                !$partie->niveaux()->whereHas('droitsNiveau', function ($q) use ($user) {
-                    $q->where('utilisateur_id', $user->id)->where('ecriture', true);
-                })->exists() &&
-                !$partie->droitsPartie()->where('utilisateur_id', $user->id)->where('ecriture', true)->exists()) {
+        try {
+            // Vérifier que l'utilisateur assigné est bien un utilisateur entreprise
+            $owner = User::findOrFail($request->owner_id);
+            if (!$owner->hasRole('user-entreprise')) {
                 return response()->json([
-                    'message' => "Vous n'avez pas les droits pour modifier la partie \"{$partie->nom}\"."
-                ], 403);
+                    'message' => 'L\'utilisateur doit avoir le rôle "user-entreprise" pour être assigné comme propriétaire.'
+                ], 422);
             }
+
+            // Mettre à jour toutes les parties sélectionnées
+            Partie::whereIn('id', $request->partie_ids)
+                  ->update(['owner_id' => $request->owner_id]);
+
+            $updatedParties = Partie::whereIn('id', $request->partie_ids)
+                                   ->with(['owner', 'batiment.site', 'niveaux', 'lots'])
+                                   ->get();
+
+            return response()->json([
+                'message' => 'Propriétaires assignés avec succès à ' . count($request->partie_ids) . ' partie(s)',
+                'parties' => PartieResource::collection($updatedParties)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de l\'assignation en masse.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Récupérer les parties d'un bâtiment avec leurs propriétaires
+     */
+    public function getPartiesByBatimentWithOwners(Request $request, $batimentId)
+    {
+        $user = Auth::user();
+        
+        // Vérifier les droits d'accès au bâtiment
+        $batiment = Batiment::findOrFail($batimentId);
+        
+        if (!$user->hasRole('super-admin') && 
+            $batiment->site->client_id !== $user->id && 
+            !$batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('lecture', true)->exists() &&
+            !$batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('lecture', true)->exists()) {
+            
+            return response()->json([
+                'message' => 'Vous n\'avez pas les droits pour consulter les parties de ce bâtiment.'
+            ], 403);
         }
 
-        // Assigner l'owner à toutes les parties
-        Partie::whereIn('id', $partieIds)->update(['owner_id' => $request->owner_id]);
+        try {
+            $parties = Partie::where('batiment_id', $batimentId)
+                            ->with(['owner', 'batiment.site', 'niveaux', 'lots'])
+                            ->get();
 
-        // Recharger les parties avec les nouvelles données
-        $updatedParties = Partie::with(['batiment.site', 'owner'])->whereIn('id', $partieIds)->get();
-
-        return response()->json([
-            'message' => 'Propriétaire assigné avec succès aux parties',
-            'parties' => PartieResource::collection($updatedParties)
-        ]);
+            return response()->json([
+                'parties' => PartieResource::collection($parties)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des parties.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

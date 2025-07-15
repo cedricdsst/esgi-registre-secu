@@ -40,13 +40,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 const token = localStorage.getItem('authToken');
                 const storedUser = localStorage.getItem('user');
 
+                console.log('🔍 Vérification auth au chargement:', {
+                    hasToken: !!token,
+                    hasStoredUser: !!storedUser,
+                    currentPath: window.location.pathname
+                });
+
                 if (token && storedUser) {
-                    // Vérifier si le token est toujours valide
-                    const userData = await authService.me();
-                    setUser(userData);
+                    try {
+                        // Vérifier si le token est toujours valide
+                        console.log('🔄 Vérification token avec API...');
+                        const userData = await authService.me();
+                        console.log('✅ Token valide, données user:', userData);
+
+                        setUser(userData);
+                        // Mettre à jour les données stockées au cas où elles auraient changé
+                        localStorage.setItem('user', JSON.stringify(userData));
+                    } catch (error: any) {
+                        console.log('❌ Token invalide ou expiré:', error.message);
+                        // Token invalide, nettoyer les données
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('user');
+                        setUser(null);
+                        // Rediriger vers la page de connexion seulement si on n'y est pas déjà
+                        if (window.location.pathname !== '/login') {
+                            console.log('🔄 Redirection vers /login');
+                            window.location.href = '/login';
+                        }
+                    }
+                } else {
+                    console.log('❌ Pas de token ou d\'utilisateur stocké');
+                    // Pas de token ou pas d'utilisateur stocké
+                    setUser(null);
+                    if (window.location.pathname !== '/login') {
+                        console.log('🔄 Redirection vers /login');
+                        window.location.href = '/login';
+                    }
                 }
             } catch (error) {
-                // Token invalide, nettoyer les données
+                console.error('💥 Erreur lors de la vérification de l\'authentification:', error);
+                // En cas d'erreur inattendue, nettoyer les données
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('user');
                 setUser(null);

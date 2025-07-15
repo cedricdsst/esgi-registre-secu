@@ -28,11 +28,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
-        }
+        // Ne pas rediriger automatiquement, laisser le contexte AuthContext gérer les erreurs 401
+        // if (error.response?.status === 401) {
+        //     localStorage.removeItem('authToken');
+        //     localStorage.removeItem('user');
+        //     window.location.href = '/login';
+        // }
         return Promise.reject(error);
     }
 );
@@ -57,7 +58,7 @@ export const authService = {
         api.post('/logout').then(res => res.data),
 
     me: (): Promise<User> =>
-        api.get('/me').then(res => res.data),
+        api.get('/me').then(res => res.data.user), // Extraire l'objet user de la réponse
 };
 
 // Site Service
@@ -285,5 +286,8 @@ export const interventionService = {
     delete: (id: number): Promise<void> =>
         api.delete(`/interventions/${id}`).then(res => res.data),
 };
+
+// Export du service utilisateur
+export { userService } from './userService';
 
 export default api; 

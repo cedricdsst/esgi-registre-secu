@@ -8,6 +8,7 @@ export interface User {
     organisation: string;
     roles: string[];
     permissions: string[];
+    created_at?: string; // Ajout du champ created_at
 }
 
 export interface AuthResponse {
@@ -111,6 +112,7 @@ export interface Partie {
     id: number;
     nom: string;
     batiment_id: number;
+    owner_id?: number | null;
     type: 'privative' | 'commune';
     isICPE: boolean;
     effectif_public?: number;
@@ -121,6 +123,7 @@ export interface Partie {
     batiment?: Batiment;
     niveaux?: Niveau[];
     lots?: Lot[];
+    owner?: User; // Ajout de la propriété owner
     created_at: string;
     updated_at: string;
 }

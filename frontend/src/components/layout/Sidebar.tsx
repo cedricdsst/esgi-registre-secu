@@ -4,8 +4,10 @@ import {
   Home,
   Building,
   FileText,
-  Users
+  Users,
+  UserCog
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   const location = useLocation();
   const currentPath = location.pathname;
+  const { user, isLoading } = useAuth();
 
   // Fonction pour déterminer si un lien est actif
   const isActiveLink = (path: string) => {
@@ -31,8 +34,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           <Link
             to="/"
             className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActiveLink('/')
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-700 hover:bg-gray-100'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-700 hover:bg-gray-100'
               }`}
           >
             <Home size={20} />
@@ -43,13 +46,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           <Link
             to="/sites"
             className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActiveLink('/sites')
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-700 hover:bg-gray-100'
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-700 hover:bg-gray-100'
               }`}
           >
             <Building size={20} />
             <span>Sites</span>
           </Link>
+
+          {/* Gestion utilisateurs (super-admin uniquement) */}
+          {!isLoading && user?.role === 'super-admin' && (
+            <Link
+              to="/users"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActiveLink('/users')
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-700 hover:bg-gray-100'
+                }`}
+            >
+              <UserCog size={20} />
+              <span>Gestion utilisateurs</span>
+            </Link>
+          )}
 
           {/* Rapports */}
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 cursor-not-allowed">

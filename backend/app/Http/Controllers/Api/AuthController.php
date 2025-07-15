@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\AdminUserCreated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 
@@ -185,26 +186,36 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $request->validate([
-            'nom' => 'required|string|max:255',
-            'prenom' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'organisation' => 'required|string|max:255',
-            'role' => 'required|string|in:super-admin,admin,client-admin,user,viewer,user-entreprise,user-intervenant',
-        ], [
-            'nom.required' => 'Le nom est requis.',
-            'prenom.required' => 'Le prénom est requis.',
-            'email.required' => 'L\'email est requis.',
-            'email.email' => 'Le format de l\'email est invalide.',
-            'email.unique' => 'Cet email est déjà utilisé.',
-            'organisation.required' => 'L\'organisation est requise.',
-            'role.required' => 'Le rôle est requis.',
-            'role.in' => 'Le rôle doit être user, admin ou super-admin.',
-        ]);
-
         try {
+            Log::info('Début création utilisateur par admin', [
+                'admin_id' => $request->user()->id,
+                'data' => $request->except(['password'])
+            ]);
+
+            $request->validate([
+                'nom' => 'required|string|max:255',
+                'prenom' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users',
+                'organisation' => 'required|string|max:255',
+                'role' => 'required|string|in:super-admin,admin,client-admin,user,viewer,user-entreprise,user-intervenant',
+            ], [
+                'nom.required' => 'Le nom est requis.',
+                'prenom.required' => 'Le prénom est requis.',
+                'email.required' => 'L\'email est requis.',
+                'email.email' => 'Le format de l\'email est invalide.',
+                'email.unique' => 'Cet email est déjà utilisé.',
+                'organisation.required' => 'L\'organisation est requise.',
+                'role.required' => 'Le rôle est requis.',
+                'role.in' => 'Le rôle doit être user, admin ou super-admin.',
+            ]);
+
             // Générer un mot de passe temporaire lisible
             $temporaryPassword = 'Temp' . rand(1000, 9999) . '!';
+            
+            Log::info('Création utilisateur en cours', [
+                'email' => $request->email,
+                'role' => $request->role
+            ]);
             
             // Créer l'utilisateur avec le mot de passe temporaire
             $user = User::create([
@@ -217,16 +228,34 @@ class AuthController extends Controller
                 'email_verified_at' => now(), // Email vérifié par défaut pour les comptes admin
             ]);
 
+            Log::info('Utilisateur créé avec succès', ['user_id' => $user->id]);
+
             // Assigner le rôle Spatie
             $user->assignRole($request->role);
 
             // Créer un token de validation simple (pour sécuriser le lien)
             // Envoyer l'email avec le mot de passe temporaire
             $adminName = $request->user()->prenom . ' ' . $request->user()->nom;
-            $user->notify(new AdminUserCreated(null, $adminName, $temporaryPassword));
+            $emailSent = false;
+            
+            try {
+                $user->notify(new AdminUserCreated(null, $adminName, $temporaryPassword));
+                $emailSent = true;
+                Log::info('Email envoyé avec succès', ['user_id' => $user->id]);
+            } catch (\Exception $emailError) {
+                // Log l'erreur email mais ne pas faire échouer la création
+                Log::error('Erreur envoi email pour utilisateur créé: ' . $emailError->getMessage(), [
+                    'user_id' => $user->id,
+                    'error' => $emailError->getMessage()
+                ]);
+            }
 
-            return response()->json([
-                'message' => 'Utilisateur créé avec succès. Un email a été envoyé avec les informations de connexion.',
+            $message = $emailSent 
+                ? 'Utilisateur créé avec succès. Un email a été envoyé avec les informations de connexion.'
+                : 'Utilisateur créé avec succès. Erreur lors de l\'envoi de l\'email - mot de passe temporaire: ' . $temporaryPassword;
+
+            $response = [
+                'message' => $message,
                 'user' => [
                     'id' => $user->id,
                     'nom' => $user->nom,
@@ -234,11 +263,37 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'role' => $user->role,
                     'organisation' => $user->organisation,
+                    'created_at' => $user->created_at->toISOString(),
                     'created_by' => $adminName,
                 ]
-            ], 201);
+            ];
 
+            // Ajouter le mot de passe temporaire seulement si l'email a échoué
+            if (!$emailSent) {
+                $response['temporary_password'] = $temporaryPassword;
+            }
+
+            Log::info('Réponse prête à être envoyée', ['response' => $response]);
+
+            return response()->json($response, 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Erreur de validation lors de la création utilisateur', [
+                'errors' => $e->errors(),
+                'admin_id' => $request->user()->id
+            ]);
+            
+            return response()->json([
+                'message' => 'Erreur de validation.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Exception $e) {
+            Log::error('Erreur lors de la création utilisateur par admin', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'admin_id' => $request->user()->id
+            ]);
+            
             return response()->json([
                 'message' => 'Erreur lors de la création de l\'utilisateur.',
                 'error' => $e->getMessage(),
@@ -248,5 +303,30 @@ class AuthController extends Controller
 
     // Note: Méthode validateWelcomeToken supprimée - redirection directe vers /login
 
+    /**
+     * Récupérer la liste de tous les utilisateurs (super-admin uniquement)
+     */
+    public function getAllUsers(Request $request)
+    {
+        // Vérifier que l'utilisateur connecté est super-admin
+        if (!$request->user()->hasRole('super-admin')) {
+            return response()->json([
+                'message' => 'Accès interdit. Seuls les super-admins peuvent consulter la liste des utilisateurs.'
+            ], 403);
+        }
+
+        try {
+            $users = User::select('id', 'nom', 'prenom', 'email', 'role', 'organisation', 'created_at')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json($users);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des utilisateurs.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
 }

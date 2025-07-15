@@ -18,12 +18,15 @@ import {
 } from 'lucide-react';
 import { buildingService } from '../services/api';
 import { partieService as partieServiceLocal } from '../services/partieService';
+import { useAuth } from '../contexts/AuthContext';
 import type { Batiment, Partie, Niveau, PartieFormData } from '../types';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Modal from '../components/common/Modal';
+import EntrepriseOwnershipManagement from '../components/batiments/EntrepriseOwnershipManagement';
 
 const BatimentDetail: React.FC = () => {
     const { siteId, batimentId } = useParams<{ siteId: string; batimentId: string }>();
+    const { user } = useAuth();
     const [batiment, setBatiment] = useState<Batiment | null>(null);
     const [parties, setParties] = useState<Partie[]>([]);
     const [loading, setLoading] = useState(true);
@@ -44,6 +47,11 @@ const BatimentDetail: React.FC = () => {
     // États pour la gestion des niveaux dans le formulaire
     const [selectedNiveaux, setSelectedNiveaux] = useState<number[]>([]);
 
+    // Fonction pour mettre à jour les parties depuis le composant de gestion des entreprises
+    const handlePartiesUpdate = (updatedParties: Partie[]) => {
+        setParties(updatedParties);
+    };
+
     useEffect(() => {
         if (siteId && batimentId) {
             fetchBatimentData();
@@ -55,12 +63,12 @@ const BatimentDetail: React.FC = () => {
         try {
             setLoading(true);
             setError(null);
-            
+
             console.log('Chargement du bâtiment:', batimentId);
-            
+
             // Utiliser le service API standard au lieu du service direct
             const batimentData = await buildingService.getById(Number(batimentId));
-            
+
             console.log('Données bâtiment récupérées:', batimentData);
             setBatiment(batimentData);
 
@@ -74,7 +82,7 @@ const BatimentDetail: React.FC = () => {
             }
         } catch (err: any) {
             console.error('Erreur détaillée:', err);
-            
+
             if (err.response?.status === 401) {
                 setError('Token d\'authentification invalide ou expiré');
             } else if (err.response?.status === 404) {
@@ -221,7 +229,7 @@ const BatimentDetail: React.FC = () => {
                         <strong>🔧 Problème résolu !</strong>
                     </p>
                     <p className="text-sm text-gray-600 mb-2">
-                        Le problème était une incohérence dans la gestion des tokens. 
+                        Le problème était une incohérence dans la gestion des tokens.
                         Essayez de rafraîchir la page ou de vous reconnecter.
                     </p>
                     <p className="text-sm text-gray-600 mb-2">
@@ -409,6 +417,28 @@ const BatimentDetail: React.FC = () => {
                                                 )}
                                             </div>
 
+                                            {/* Affichage du propriétaire */}
+                                            <div className="mb-3">
+                                                {partie.owner ? (
+                                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                        <User className="h-4 w-4" />
+                                                        <span className="font-medium">Propriétaire:</span>
+                                                        <span className="text-gray-900 font-medium">
+                                                            {partie.owner.prenom} {partie.owner.nom}
+                                                        </span>
+                                                        <span className="text-gray-500">
+                                                            ({partie.owner.organisation})
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                                                        <User className="h-4 w-4" />
+                                                        <span className="font-medium">Propriétaire:</span>
+                                                        <span className="italic">Non assigné</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
 
 
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -495,6 +525,14 @@ const BatimentDetail: React.FC = () => {
                 )}
             </div>
 
+            {/* Gestion des Entreprises - Super-Admin uniquement */}
+            {user?.role === 'super-admin' && (
+                <EntrepriseOwnershipManagement
+                    batimentId={Number(batimentId)}
+                    onPartiesUpdate={handlePartiesUpdate}
+                />
+            )}
+
             {/* Modal de suppression */}
             <Modal
                 isOpen={showDeleteModal}
@@ -544,9 +582,8 @@ const BatimentDetail: React.FC = () => {
                                 id="nom"
                                 value={formData.nom}
                                 onChange={(e) => handleInputChange('nom', e.target.value)}
-                                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                    formErrors.nom ? 'border-red-500' : 'border-gray-300'
-                                }`}
+                                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.nom ? 'border-red-500' : 'border-gray-300'
+                                    }`}
                                 placeholder="Ex: Bureau 101, Salle de réunion..."
                             />
                             {formErrors.nom && (
@@ -563,9 +600,8 @@ const BatimentDetail: React.FC = () => {
                                 id="type"
                                 value={formData.type}
                                 onChange={(e) => handleInputChange('type', e.target.value)}
-                                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                    formErrors.type ? 'border-red-500' : 'border-gray-300'
-                                }`}
+                                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${formErrors.type ? 'border-red-500' : 'border-gray-300'
+                                    }`}
                             >
                                 <option value="privative">Privative</option>
                                 <option value="commune">Commune</option>
@@ -677,7 +713,7 @@ const BatimentDetail: React.FC = () => {
                             <div className="space-y-3 max-h-60 overflow-y-auto">
                                 {batiment.niveaux.map((niveau) => {
                                     const isSelected = selectedNiveaux.includes(niveau.id);
-                                    
+
                                     return (
                                         <div key={niveau.id} className="border border-gray-200 rounded-lg p-3">
                                             <div className="flex items-start gap-3">
@@ -695,12 +731,12 @@ const BatimentDetail: React.FC = () => {
                                                             (Étage {niveau.numero_etage})
                                                         </span>
                                                     </div>
-                                                    
-                                                                                        {isSelected && (
-                                        <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-700">
-                                            ✓ Ce niveau utilisera les valeurs du formulaire général
-                                        </div>
-                                    )}
+
+                                                    {isSelected && (
+                                                        <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-700">
+                                                            ✓ Ce niveau utilisera les valeurs du formulaire général
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

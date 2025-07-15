@@ -38,10 +38,23 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route pour l'inscription par super admin
     Route::post('/admin/register', [AuthController::class, 'adminRegister']);
     
+    // Route pour récupérer la liste des utilisateurs (super-admin uniquement)
+    Route::get('/admin/users', [AuthController::class, 'getAllUsers']);
+    
     // Routes pour la gestion des sites et bâtiments
     Route::apiResource('sites', SiteController::class);
     Route::apiResource('batiments', BatimentController::class);
     Route::apiResource('niveaux', NiveauController::class);
+    
+    // Routes spécifiques pour les parties (AVANT la route resource)
+    Route::get('parties/entreprise-users', [PartieController::class, 'getEntrepriseUsers']);
+    Route::post('parties/{partie}/lots/attach', [PartieController::class, 'attachLot']);
+    Route::post('parties/{partie}/lots/detach', [PartieController::class, 'detachLot']);
+    Route::post('parties/{partie}/lots/transfer', [PartieController::class, 'transferLot']);
+    Route::post('parties/{partie}/assign-owner', [PartieController::class, 'assignOwner']);
+    Route::post('parties/assign-owner-bulk', [PartieController::class, 'assignOwnerBulk']);
+    
+    // Route resource pour les parties (APRÈS les routes spécifiques)
     Route::apiResource('parties', PartieController::class)->parameters(['parties' => 'partie']);
     Route::apiResource('lots', LotController::class);
     
@@ -65,13 +78,8 @@ Route::middleware('auth:sanctum')->group(function () {
         return app(PartieController::class)->index(request()->merge(['niveau_id' => $niveauId]));
     });
     
-    // Routes pour la gestion des lots dans les parties
-    Route::post('parties/{partie}/lots/attach', [PartieController::class, 'attachLot']);
-    Route::post('parties/{partie}/lots/detach', [PartieController::class, 'detachLot']);
-    Route::post('parties/{partie}/lots/transfer', [PartieController::class, 'transferLot']);
-    
-    // Route pour assigner un propriétaire à une ou plusieurs parties
-    Route::post('parties/assign-owner', [PartieController::class, 'assignOwner']);
+    // Routes pour la gestion des propriétaires de parties
+    Route::get('batiments/{batiment}/parties-with-owners', [PartieController::class, 'getPartiesByBatimentWithOwners']);
     
     // Routes pour les entreprises
     Route::apiResource('entreprises', EntrepriseController::class);
