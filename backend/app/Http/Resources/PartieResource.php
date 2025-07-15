@@ -17,6 +17,7 @@ class PartieResource extends JsonResource
         return [
             'id' => $this->id,
             'batiment_id' => $this->batiment_id,
+            'owner_id' => $this->owner_id,
             'nom' => $this->nom,
             'type' => $this->type,
             'isICPE' => $this->isICPE,
@@ -67,6 +68,17 @@ class PartieResource extends JsonResource
             }),
             'effectif_personnel' => $this->whenLoaded('niveaux', function () {
                 return $this->niveaux->sum('pivot.personnel') ?: 0;
+            }),
+            
+            'owner' => $this->whenLoaded('owner', function () {
+                return [
+                    'id' => $this->owner->id,
+                    'nom' => $this->owner->nom,
+                    'prenom' => $this->owner->prenom,
+                    'email' => $this->owner->email,
+                    'full_name' => $this->owner->full_name,
+                    'organisation' => $this->owner->organisation,
+                ];
             }),
             
             // Métadonnées

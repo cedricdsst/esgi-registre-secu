@@ -11,6 +11,7 @@ class Partie extends Model
 
     protected $fillable = [
         'batiment_id',
+        'owner_id',
         'nom',
         'type',
         'isICPE',
@@ -28,6 +29,11 @@ class Partie extends Model
     public function batiment()
     {
         return $this->belongsTo(Batiment::class);
+    }
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_id');
     }
     
     public function niveaux()
