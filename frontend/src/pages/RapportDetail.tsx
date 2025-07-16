@@ -20,6 +20,7 @@ import {
 import { rapportService, type Rapport } from '../services/rapportService';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { EquipmentDisplay } from '../components/rapports/EquipmentDisplay';
 
 const RapportDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -325,6 +326,15 @@ const RapportDetail: React.FC = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Équipements techniques */}
+                    <div className="bg-white rounded-lg shadow-sm border p-6">
+                        <EquipmentDisplay
+                            equipmentIds={rapport.equipements_selection || []}
+                            title="Équipements techniques"
+                            className=""
+                        />
+                    </div>
 
                     {/* Observations */}
                     {rapport.observations && rapport.observations.length > 0 && (

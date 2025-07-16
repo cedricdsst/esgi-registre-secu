@@ -368,7 +368,7 @@ const BatimentDetail: React.FC = () => {
                 </div>
 
                 {/* Statistiques */}
-                <div className="grid grid-cols-3 gap-4 mt-6">
+                <div className="grid grid-cols-2 gap-4 mt-6">
                     <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <p className="text-2xl font-bold text-gray-900">
                             {batiment.niveaux?.length || 0}
@@ -380,12 +380,6 @@ const BatimentDetail: React.FC = () => {
                             {parties.length}
                         </p>
                         <p className="text-sm text-gray-500">Parties</p>
-                    </div>
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                        <p className="text-2xl font-bold text-gray-900">
-                            {batiment.parties?.reduce((total, partie) => total + (partie.lots?.length || 0), 0) || 0}
-                        </p>
-                        <p className="text-sm text-gray-500">Lots</p>
                     </div>
                 </div>
             </div>
@@ -584,18 +578,12 @@ const BatimentDetail: React.FC = () => {
 
 
 
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                                                     <p className="text-lg font-semibold text-gray-900">
                                                         {partie.niveaux?.length || 0}
                                                     </p>
                                                     <p className="text-sm text-gray-500">Niveaux</p>
-                                                </div>
-                                                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                                    <p className="text-lg font-semibold text-gray-900">
-                                                        {partie.lots?.length || 0}
-                                                    </p>
-                                                    <p className="text-sm text-gray-500">Lots</p>
                                                 </div>
                                                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                                                     <p className="text-lg font-semibold text-gray-900">

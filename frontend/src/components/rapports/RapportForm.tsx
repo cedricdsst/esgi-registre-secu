@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { rapportService, type CreateRapportData, type TypeRapport, type Observation } from '../../services/rapportService';
 import LoadingSpinner from '../common/LoadingSpinner';
+import { EquipmentSelector } from './EquipmentSelector';
 
 interface RapportFormProps {
     isOpen: boolean;
@@ -235,6 +236,14 @@ const RapportForm: React.FC<RapportFormProps> = ({
                                 </label>
                             ))}
                         </div>
+                    </div>
+
+                    {/* Équipements techniques */}
+                    <div>
+                        <EquipmentSelector
+                            selectedEquipments={formData.equipements_selection || []}
+                            onSelectionChange={(selectedIds) => setFormData(prev => ({ ...prev, equipements_selection: selectedIds }))}
+                        />
                     </div>
 
                     {/* Observations */}

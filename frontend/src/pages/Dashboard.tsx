@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Building,
-    FileText,
-    AlertCircle,
-    Users,
-    TrendingUp,
     ChevronRight,
-    Boxes
+    Boxes,
+    Wrench,
+    UserCog
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { siteService } from '../services/api';
@@ -72,7 +70,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             {/* Statistiques globales */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                     <div className="flex items-center justify-between">
                         <div>
@@ -96,94 +94,77 @@ const Dashboard: React.FC = () => {
                         </div>
                     </div>
                 </div>
-
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600">Rapports</p>
-                            <p className="text-2xl font-bold text-gray-900">-</p>
-                            <p className="text-xs text-gray-500">À venir</p>
-                        </div>
-                        <div className="bg-yellow-100 p-3 rounded-full">
-                            <FileText className="h-6 w-6 text-yellow-600" />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600">Observations</p>
-                            <p className="text-2xl font-bold text-gray-900">-</p>
-                            <p className="text-xs text-gray-500">À venir</p>
-                        </div>
-                        <div className="bg-red-100 p-3 rounded-full">
-                            <AlertCircle className="h-6 w-6 text-red-600" />
-                        </div>
-                    </div>
-                </div>
             </div>
 
             {/* Actions rapides */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                        Navigation principale
-                    </h2>
-                    <div className="space-y-3">
-                        <Link
-                            to="/sites"
-                            className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="bg-blue-100 p-2 rounded-lg">
-                                    <Building className="h-5 w-5 text-blue-600" />
-                                </div>
-                                <div>
-                                    <p className="font-medium text-gray-900">Gérer les sites</p>
-                                    <p className="text-sm text-gray-500">Accéder à tous vos sites</p>
-                                </div>
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600" />
-                        </Link>
-
-                        <Link
-                            to="/inventaire"
-                            className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="bg-green-100 p-2 rounded-lg">
-                                    <Boxes className="h-5 w-5 text-green-600" />
-                                </div>
-                                <div>
-                                    <p className="font-medium text-gray-900">Inventaire</p>
-                                    <p className="text-sm text-gray-500">Gérer les équipements</p>
-                                </div>
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600" />
-                        </Link>
-                    </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                        Activité récente
-                    </h2>
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50">
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                    Navigation principale
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Link
+                        to="/sites"
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
                             <div className="bg-blue-100 p-2 rounded-lg">
-                                <TrendingUp className="h-4 w-4 text-blue-600" />
+                                <Building className="h-5 w-5 text-blue-600" />
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                    Système initialisé
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                    Commencez par créer vos premiers sites
-                                </p>
+                                <p className="font-medium text-gray-900">Gérer les sites</p>
+                                <p className="text-sm text-gray-500">Accéder à tous vos sites</p>
                             </div>
                         </div>
-                    </div>
+                        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600" />
+                    </Link>
+
+                    <Link
+                        to="/inventaire"
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                                <Boxes className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                                <p className="font-medium text-gray-900">Inventaire</p>
+                                <p className="text-sm text-gray-500">Gérer les équipements</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600" />
+                    </Link>
+
+                    <Link
+                        to="/interventions"
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="bg-orange-100 p-2 rounded-lg">
+                                <Wrench className="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div>
+                                <p className="font-medium text-gray-900">Interventions</p>
+                                <p className="text-sm text-gray-500">Gérer les interventions</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600" />
+                    </Link>
+
+                    <Link
+                        to="/users"
+                        className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="bg-purple-100 p-2 rounded-lg">
+                                <UserCog className="h-5 w-5 text-purple-600" />
+                            </div>
+                            <div>
+                                <p className="font-medium text-gray-900">Gestion utilisateurs</p>
+                                <p className="text-sm text-gray-500">Gérer les comptes utilisateurs</p>
+                            </div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600" />
+                    </Link>
                 </div>
             </div>
 
