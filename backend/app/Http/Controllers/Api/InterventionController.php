@@ -13,7 +13,17 @@ class InterventionController extends Controller
 {
     public function index(Request $request)
 {
+    $user = $request->user();
     $query = Intervention::with(['typeIntervention', 'parties']);
+    
+    // Filtrer par créateur pour les utilisateurs entreprise seulement
+    // Les super-admin peuvent voir toutes les interventions
+    // Les user-intervenant voient seulement les interventions où ils sont assignés
+    if ($user->hasRole('user-entreprise')) {
+        $query->where('created_by', $user->id);
+    } elseif ($user->hasRole('user-intervenant')) {
+        $query->where('intervenant_nom', $user->prenom . ' ' . $user->nom);
+    }
     
     // Filtres
     if ($request->has('statut')) {
@@ -51,6 +61,9 @@ class InterventionController extends Controller
             'partie_ids.*' => 'exists:parties,id',
         ]);
 
+        // Ajouter l'utilisateur créateur
+        $validated['created_by'] = $request->user()->id;
+
         $intervention = Intervention::create($validated);
         
         // Attacher les parties
@@ -60,10 +73,62 @@ class InterventionController extends Controller
         return new InterventionResource($intervention);
     }
 
+    /**
+     * Récupérer les utilisateurs intervenants pour les formulaires
+     */
+    public function getIntervenantUsers(Request $request)
+    {
+        $user = $request->user();
+        
+        // Vérifier que l'utilisateur a le droit de créer des interventions
+        if (!$user->hasRole(['super-admin', 'user-entreprise'])) {
+            return response()->json([
+                'message' => 'Accès interdit.'
+            ], 403);
+        }
+
+        try {
+            // Récupérer tous les utilisateurs avec le rôle 'user-intervenant'
+            $intervenants = \App\Models\User::whereHas('roles', function($query) {
+                $query->where('name', 'user-intervenant');
+            })->select('id', 'nom', 'prenom', 'email', 'organisation')
+              ->orderBy('nom')
+              ->get();
+
+            return response()->json($intervenants);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des intervenants.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function show(Intervention $intervention)
     {
+        $user = auth()->user();
+        
+        // Vérifier que l'utilisateur peut voir cette intervention
+        // Les super-admin peuvent voir toutes les interventions
+        // Les user-intervenant peuvent voir les interventions qui leur sont assignées
+        if ($user->hasRole('user-entreprise') && $intervention->created_by !== $user->id) {
+            return response()->json([
+                'message' => 'Accès refusé à cette intervention.'
+            ], 403);
+        } elseif ($user->hasRole('user-intervenant') && $intervention->intervenant_nom !== ($user->prenom . ' ' . $user->nom)) {
+            return response()->json([
+                'message' => 'Accès refusé à cette intervention.'
+            ], 403);
+        }
+        
         // Charger les observations de suivi seulement pour les interventions de type "Suivi d'observation"
-        $relations = ['typeIntervention', 'parties', 'rapports'];
+        $relations = [
+            'typeIntervention', 
+            'parties.batiment', 
+            'rapports.typeRapport',
+            'rapports.observations',
+            'rapports.fichiers'
+        ];
         
         if ($intervention->typeIntervention && $intervention->typeIntervention->nom === 'Suivi d\'observation') {
             $relations[] = 'observationsSuivi';
@@ -75,6 +140,19 @@ class InterventionController extends Controller
 
     public function update(Request $request, Intervention $intervention)
     {
+        $user = auth()->user();
+        
+        // Vérifier que l'utilisateur peut modifier cette intervention
+        if ($user->hasRole('user-entreprise') && $intervention->created_by !== $user->id) {
+            return response()->json([
+                'message' => 'Accès refusé à cette intervention.'
+            ], 403);
+        } elseif ($user->hasRole('user-intervenant') && $intervention->intervenant_nom !== ($user->prenom . ' ' . $user->nom)) {
+            return response()->json([
+                'message' => 'Accès refusé à cette intervention.'
+            ], 403);
+        }
+        
         $validated = $request->validate([
             'intitule' => 'string|max:255',
             'entreprise_nom' => 'string|max:255',
@@ -100,6 +178,33 @@ class InterventionController extends Controller
     {
         $intervention->delete();
         return response()->json(['message' => 'Intervention supprimée avec succès'], Response::HTTP_OK);
+    }
+
+    public function updateStatus(Request $request, Intervention $intervention)
+    {
+        $user = auth()->user();
+        
+        // Vérifier que l'utilisateur peut modifier cette intervention
+        if ($user->hasRole('user-entreprise') && $intervention->created_by !== $user->id) {
+            return response()->json([
+                'message' => 'Accès refusé à cette intervention.'
+            ], 403);
+        } elseif ($user->hasRole('user-intervenant') && $intervention->intervenant_nom !== ($user->prenom . ' ' . $user->nom)) {
+            return response()->json([
+                'message' => 'Accès refusé à cette intervention.'
+            ], 403);
+        }
+        
+        $validated = $request->validate([
+            'statut' => 'required|in:planifie,en_cours,termine,annule',
+        ]);
+
+        $intervention->update([
+            'statut' => $validated['statut'],
+        ]);
+
+        $intervention->load(['typeIntervention', 'parties', 'rapports']);
+        return new InterventionResource($intervention);
     }
 
     public function sign(Request $request, Intervention $intervention)

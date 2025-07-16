@@ -14,21 +14,27 @@ import {
     MapPin,
     Home,
     Users,
-    Square
+    Square,
+    Wrench,
+    CheckSquare
 } from 'lucide-react';
 import { buildingService } from '../services/api';
 import { partieService as partieServiceLocal } from '../services/partieService';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import type { Batiment, Partie, Niveau, PartieFormData } from '../types';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Modal from '../components/common/Modal';
 import EntrepriseOwnershipManagement from '../components/batiments/EntrepriseOwnershipManagement';
+import InterventionForm from '../components/interventions/InterventionForm';
 
 const BatimentDetail: React.FC = () => {
     const { siteId, batimentId } = useParams<{ siteId: string; batimentId: string }>();
     const { user } = useAuth();
+    const { canCreateParties, canEditBuildings, canDeleteItems, canManageOwnership, isEnterpriseUser } = usePermissions();
     const [batiment, setBatiment] = useState<Batiment | null>(null);
     const [parties, setParties] = useState<Partie[]>([]);
+    const [filteredParties, setFilteredParties] = useState<Partie[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -47,9 +53,48 @@ const BatimentDetail: React.FC = () => {
     // États pour la gestion des niveaux dans le formulaire
     const [selectedNiveaux, setSelectedNiveaux] = useState<number[]>([]);
 
+    // États pour les interventions
+    const [showInterventionForm, setShowInterventionForm] = useState(false);
+    const [selectedPartiesForIntervention, setSelectedPartiesForIntervention] = useState<number[]>([]);
+    const [selectionMode, setSelectionMode] = useState(false);
+
     // Fonction pour mettre à jour les parties depuis le composant de gestion des entreprises
     const handlePartiesUpdate = (updatedParties: Partie[]) => {
         setParties(updatedParties);
+    };
+
+    // Fonctions pour la gestion des interventions
+    const handleStartSelection = () => {
+        setSelectionMode(true);
+        setSelectedPartiesForIntervention([]);
+    };
+
+    const handleCancelSelection = () => {
+        setSelectionMode(false);
+        setSelectedPartiesForIntervention([]);
+    };
+
+    const handlePartieSelection = (partieId: number) => {
+        setSelectedPartiesForIntervention(prev => 
+            prev.includes(partieId) 
+                ? prev.filter(id => id !== partieId)
+                : [...prev, partieId]
+        );
+    };
+
+    const handleCreateIntervention = () => {
+        if (selectedPartiesForIntervention.length === 0) {
+            alert('Veuillez sélectionner au moins une partie');
+            return;
+        }
+        setShowInterventionForm(true);
+    };
+
+    const handleInterventionSuccess = () => {
+        setSelectionMode(false);
+        setSelectedPartiesForIntervention([]);
+        setShowInterventionForm(false);
+        // Optionnel : rafraîchir les données ou afficher un message de succès
     };
 
     useEffect(() => {
@@ -58,6 +103,22 @@ const BatimentDetail: React.FC = () => {
             setFormData(prev => ({ ...prev, batiment_id: Number(batimentId) }));
         }
     }, [siteId, batimentId]);
+
+    useEffect(() => {
+        filterParties();
+    }, [parties, user]);
+
+    const filterParties = () => {
+        let filtered = [...parties];
+
+        // Filtrer pour les utilisateurs entreprise
+        if (isEnterpriseUser() && user) {
+            // Ne montrer que les parties dont l'utilisateur est propriétaire
+            filtered = parties.filter(partie => partie.owner_id === user.id);
+        }
+
+        setFilteredParties(filtered);
+    };
 
     const fetchBatimentData = async () => {
         try {
@@ -362,43 +423,125 @@ const BatimentDetail: React.FC = () => {
                 </div>
             )}
 
+            {/* Message pour les utilisateurs entreprise */}
+            {isEnterpriseUser() && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                        <User className="text-blue-600" size={20} />
+                        <p className="text-blue-800">
+                            <span className="font-medium">Utilisateur Entreprise :</span> Vous ne voyez que les parties qui vous sont assignées dans ce bâtiment.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Actions pour les interventions - Utilisateurs entreprise */}
+            {isEnterpriseUser() && filteredParties.length > 0 && (
+                <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                            <Wrench className="text-blue-600" size={20} />
+                            Interventions
+                        </h3>
+                        {!selectionMode ? (
+                            <button
+                                onClick={handleStartSelection}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            >
+                                <CheckSquare size={16} />
+                                Créer une intervention
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-600">
+                                    {selectedPartiesForIntervention.length} partie(s) sélectionnée(s)
+                                </span>
+                                <button
+                                    onClick={handleCreateIntervention}
+                                    disabled={selectedPartiesForIntervention.length === 0}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Wrench size={16} />
+                                    Créer intervention
+                                </button>
+                                <button
+                                    onClick={handleCancelSelection}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                >
+                                    <X size={16} />
+                                    Annuler
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    {selectionMode && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p className="text-sm text-blue-800">
+                                <strong>Mode sélection activé :</strong> Cliquez sur les parties pour lesquelles vous souhaitez créer une intervention.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Liste des parties */}
             <div className="bg-white p-6 rounded-lg shadow-sm">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-semibold text-gray-900">
-                        Parties ({parties.length})
+                        Parties ({filteredParties.length})
                     </h2>
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                    >
-                        <Plus size={16} />
-                        Nouvelle partie
-                    </button>
+                    {canCreateParties() && (
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                        >
+                            <Plus size={16} />
+                            Nouvelle partie
+                        </button>
+                    )}
                 </div>
 
-                {parties.length === 0 ? (
+                {filteredParties.length === 0 ? (
                     <div className="text-center py-12">
                         <Home className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune partie</h3>
                         <p className="text-gray-500 mb-6">Ce bâtiment ne contient encore aucune partie.</p>
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                        >
-                            <Plus size={18} />
-                            Créer la première partie
-                        </button>
+                        {canCreateParties() && (
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            >
+                                <Plus size={18} />
+                                Créer la première partie
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {parties.map((partie) => (
+                        {filteredParties.map((partie) => (
                             <div
                                 key={partie.id}
-                                className="border border-gray-200 rounded-lg p-6 hover:border-blue-300 hover:shadow-md transition-all"
+                                className={`border rounded-lg p-6 hover:shadow-md transition-all ${
+                                    selectionMode
+                                        ? selectedPartiesForIntervention.includes(partie.id)
+                                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                                            : 'border-gray-200 hover:border-blue-300 cursor-pointer'
+                                        : 'border-gray-200 hover:border-blue-300'
+                                }`}
+                                onClick={selectionMode ? () => handlePartieSelection(partie.id) : undefined}
                             >
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-start gap-4 flex-1">
+                                        {selectionMode && (
+                                            <div className="flex items-center justify-center mt-1">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedPartiesForIntervention.includes(partie.id)}
+                                                    onChange={() => handlePartieSelection(partie.id)}
+                                                    className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                                />
+                                            </div>
+                                        )}
                                         <div className="bg-green-100 p-3 rounded-lg">
                                             <Home className="h-6 w-6 text-green-600" />
                                         </div>
@@ -493,30 +636,27 @@ const BatimentDetail: React.FC = () => {
                                     </div>
 
                                     <div className="flex items-center gap-2 ml-4">
-                                        <Link
-                                            to={`/sites/${siteId}/batiments/${batiment.id}/parties/${partie.id}`}
-                                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                                        >
-                                            Voir détails
-                                            <ChevronRight size={16} />
-                                        </Link>
-                                        <button
-                                            onClick={() => {
-                                                // TODO: Implement edit functionality
-                                            }}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
-                                        >
-                                            <Edit size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setPartieToDelete(partie);
-                                                setShowDeleteModal(true);
-                                            }}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-md"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        {canEditBuildings() && (
+                                            <button
+                                                onClick={() => {
+                                                    // TODO: Implement edit functionality
+                                                }}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                        )}
+                                        {canDeleteItems() && (
+                                            <button
+                                                onClick={() => {
+                                                    setPartieToDelete(partie);
+                                                    setShowDeleteModal(true);
+                                                }}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-md"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -526,7 +666,7 @@ const BatimentDetail: React.FC = () => {
             </div>
 
             {/* Gestion des Entreprises - Super-Admin uniquement */}
-            {user?.role === 'super-admin' && (
+            {canManageOwnership() && (
                 <EntrepriseOwnershipManagement
                     batimentId={Number(batimentId)}
                     onPartiesUpdate={handlePartiesUpdate}
@@ -766,6 +906,15 @@ const BatimentDetail: React.FC = () => {
                     </div>
                 </div>
             </Modal>
+
+            {/* Formulaire de création d'intervention */}
+            <InterventionForm
+                isOpen={showInterventionForm}
+                onClose={() => setShowInterventionForm(false)}
+                onSuccess={handleInterventionSuccess}
+                selectedPartieIds={selectedPartiesForIntervention}
+                batimentName={batiment?.nom || 'Bâtiment'}
+            />
         </div>
     );
 };

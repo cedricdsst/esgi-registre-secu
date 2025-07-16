@@ -5,7 +5,8 @@ import {
   Building,
   FileText,
   Users,
-  UserCog
+  UserCog,
+  Wrench
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -54,6 +55,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
             <span>Sites</span>
           </Link>
 
+          {/* Interventions (utilisateurs entreprise, super-admin et intervenant) */}
+          {!isLoading && (user?.role === 'user-entreprise' || user?.role === 'super-admin' || user?.role === 'user-intervenant') && (
+            <Link
+              to="/interventions"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActiveLink('/interventions')
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-700 hover:bg-gray-100'
+                }`}
+            >
+              <Wrench size={20} />
+              <span>Interventions</span>
+            </Link>
+          )}
+
           {/* Gestion utilisateurs (super-admin uniquement) */}
           {!isLoading && user?.role === 'super-admin' && (
             <Link
@@ -69,11 +84,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           )}
 
           {/* Rapports */}
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 cursor-not-allowed">
+          <Link
+            to="/rapports"
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isActiveLink('/rapports')
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-700 hover:bg-gray-100'
+              }`}
+          >
             <FileText size={20} />
             <span>Rapports</span>
-            <span className="ml-auto text-xs bg-gray-200 px-2 py-1 rounded">Bientôt</span>
-          </div>
+          </Link>
 
           {/* Entreprises */}
           <div className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 cursor-not-allowed">

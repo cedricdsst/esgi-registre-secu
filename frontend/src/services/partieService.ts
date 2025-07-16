@@ -56,7 +56,7 @@ export const partieService = {
     // Obtenir les parties d'un bâtiment
     async getByBatiment(batimentId: number): Promise<Partie[]> {
         const response = await api.get(`/batiments/${batimentId}/parties-with-owners`);
-        return response.data;
+        return response.data.parties; // Fix: return the parties array from the response object
     },
 
     // Obtenir les parties d'un niveau

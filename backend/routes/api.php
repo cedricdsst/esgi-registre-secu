@@ -88,7 +88,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('types-interventions', TypeInterventionController::class);
     
     // Routes pour les interventions
+    Route::get('interventions/intervenants', [InterventionController::class, 'getIntervenantUsers']);
     Route::apiResource('interventions', InterventionController::class);
+    Route::put('interventions/{intervention}/status', [InterventionController::class, 'updateStatus']);
     Route::post('interventions/{intervention}/sign', [InterventionController::class, 'sign']);
     
     // Routes pour les types de rapports
@@ -98,6 +100,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('rapports', RapportController::class);
     Route::post('rapports/{rapport}/sign', [RapportController::class, 'sign']);
     Route::post('rapports/{rapport}/archive', [RapportController::class, 'archive']);
+    
+    // Routes pour les fichiers de rapports
+    Route::post('rapports/{rapport}/files', [RapportController::class, 'uploadFile']);
+    Route::get('rapports/{rapport}/files/{fichier_id}', [RapportController::class, 'downloadFile']);
+    Route::delete('rapports/{rapport}/files/{fichier_id}', [RapportController::class, 'deleteFile']);
     
     // Routes pour les observations
     Route::apiResource('observations', ObservationController::class);

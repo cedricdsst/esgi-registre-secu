@@ -19,9 +19,16 @@ class BatimentController extends Controller
         $user = Auth::user();
         
         if ($user->hasRole('super-admin')) {
-            $batiments = Batiment::with(['site', 'niveaux', 'erps', 'ighs', 'habs', 'bups'])->get();
+            $batiments = Batiment::with(['site', 'niveaux', 'parties.owner', 'erps', 'ighs', 'habs', 'bups'])->get();
+        } elseif ($user->hasRole('user-entreprise')) {
+            // Pour les utilisateurs entreprise, ne montrer que les bâtiments avec des parties qui leur appartiennent
+            $batiments = Batiment::with(['site', 'niveaux', 'parties.owner', 'erps', 'ighs', 'habs', 'bups'])
+                ->whereHas('parties', function ($q) use ($user) {
+                    $q->where('owner_id', $user->id);
+                })
+                ->get();
         } else {
-            $batiments = Batiment::with(['site', 'niveaux', 'erps', 'ighs', 'habs', 'bups'])
+            $batiments = Batiment::with(['site', 'niveaux', 'parties.owner', 'erps', 'ighs', 'habs', 'bups'])
                 ->whereHas('site', function ($query) use ($user) {
                     $query->where('client_id', $user->id)
                           ->orWhereHas('droitsSite', function ($q) use ($user) {
@@ -36,8 +43,7 @@ class BatimentController extends Controller
                 ->get();
         }
 
-        return response()->json(BatimentResource::collection($batiments)
-        );
+        return response()->json(BatimentResource::collection($batiments));
     }
 
     /**
@@ -85,11 +91,22 @@ class BatimentController extends Controller
         $user = Auth::user();
 
         // Vérifier les droits d'accès
-        if (!$user->hasRole('super-admin') && 
-            $batiment->site->client_id !== $user->id && 
-            !$batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('lecture', true)->exists() &&
-            !$batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('lecture', true)->exists()) {
-            
+        $canAccess = false;
+        
+        if ($user->hasRole('super-admin')) {
+            $canAccess = true;
+        } elseif ($batiment->site->client_id === $user->id) {
+            $canAccess = true;
+        } elseif ($batiment->site->droitsSite()->where('utilisateur_id', $user->id)->where('lecture', true)->exists()) {
+            $canAccess = true;
+        } elseif ($batiment->droitsBatiment()->where('utilisateur_id', $user->id)->where('lecture', true)->exists()) {
+            $canAccess = true;
+        } elseif ($user->hasRole('user-entreprise')) {
+            // Vérifier si l'utilisateur est propriétaire d'au moins une partie dans ce bâtiment
+            $canAccess = $batiment->parties()->where('owner_id', $user->id)->exists();
+        }
+
+        if (!$canAccess) {
             return response()->json([
                 'message' => 'Vous n\'avez pas les droits pour consulter ce bâtiment.'
             ], 403);
@@ -98,7 +115,8 @@ class BatimentController extends Controller
         return response()->json([
             'batiment' => new BatimentResource($batiment->load([
                 'site', 
-                'niveaux.parties', 
+                'niveaux.parties.owner', 
+                'parties.owner',
                 'parties.lots', 
                 'parties.niveaux',
                 'erps', 

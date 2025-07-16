@@ -16,7 +16,8 @@ class Intervention extends Model
         'type_intervention_id',
         'statut',
         'signed_at',
-        'signed_by'
+        'signed_by',
+        'created_by'
     ];
 
     protected $casts = [
@@ -43,6 +44,11 @@ class Intervention extends Model
     {
         return $this->belongsToMany(Observation::class, 'intervention_suivi_observation')
                     ->withTimestamps();
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function isSigned()

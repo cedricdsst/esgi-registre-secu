@@ -19,10 +19,18 @@ class SiteController extends Controller
         
         // Si l'utilisateur est super-admin, il voit tous les sites
         if ($user->hasRole('super-admin')) {
-            $sites = Site::with(['batiments', 'client'])->get();
+            $sites = Site::with(['batiments.parties.owner', 'client'])->get();
+        } 
+        // Si l'utilisateur est user-entreprise, il ne voit que les sites avec des parties qui lui appartiennent
+        else if ($user->hasRole('user-entreprise')) {
+            $sites = Site::with(['batiments.parties.owner', 'client'])
+                ->whereHas('batiments.parties', function ($q) use ($user) {
+                    $q->where('owner_id', $user->id);
+                })
+                ->get();
         } else {
             // Sinon, il ne voit que les sites de son organisation ou ceux auxquels il a des droits
-            $sites = Site::with(['batiments', 'client'])
+            $sites = Site::with(['batiments.parties.owner', 'client'])
                 ->where(function ($query) use ($user) {
                     $query->where('client_id', $user->id)
                           ->orWhereHas('droitsSite', function ($q) use ($user) {
@@ -33,8 +41,7 @@ class SiteController extends Controller
                 ->get();
         }
 
-        return response()->json(SiteResource::collection($sites)
-        );
+        return response()->json(SiteResource::collection($sites));
     }
 
     /**
@@ -85,16 +92,34 @@ class SiteController extends Controller
         $user = Auth::user();
 
         // Vérifier les droits d'accès
-        if (!$user->hasRole('super-admin') && 
-            $site->client_id !== $user->id && 
-            !$site->droitsSite()->where('utilisateur_id', $user->id)->where('lecture', true)->exists()) {
+        $canAccess = false;
+        
+        if ($user->hasRole('super-admin')) {
+            $canAccess = true;
+        } elseif ($site->client_id === $user->id) {
+            $canAccess = true;
+        } elseif ($site->droitsSite()->where('utilisateur_id', $user->id)->where('lecture', true)->exists()) {
+            $canAccess = true;
+        } elseif ($user->hasRole('user-entreprise')) {
+            // Vérifier si l'utilisateur est propriétaire d'au moins une partie dans ce site
+            $canAccess = $site->batiments()->whereHas('parties', function ($q) use ($user) {
+                $q->where('owner_id', $user->id);
+            })->exists();
+        }
+
+        if (!$canAccess) {
             return response()->json([
                 'message' => 'Vous n\'avez pas les droits pour consulter ce site.'
             ], 403);
         }
 
         return response()->json([
-            'site' => new SiteResource($site->load(['batiments.niveaux.parties', 'client', 'droitsSite.user']))
+            'site' => new SiteResource($site->load([
+                'batiments.parties.owner', 
+                'batiments.niveaux.parties.owner', 
+                'client', 
+                'droitsSite.user'
+            ]))
         ]);
     }
 

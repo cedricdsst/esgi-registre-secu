@@ -14,14 +14,17 @@ import {
     Layers
 } from 'lucide-react';
 import { siteService, buildingService, levelService } from '../services/api';
+import { usePermissions } from '../hooks/usePermissions';
 import type { Site, Building, BatimentFormData, NiveauTemp } from '../types';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Modal from '../components/common/Modal';
 
 const SiteDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
+    const { canCreateBuildings, canEditSites, canDeleteItems, isEnterpriseUser, user } = usePermissions();
     const [site, setSite] = useState<Site | null>(null);
     const [buildings, setBuildings] = useState<Building[]>([]);
+    const [filteredBuildings, setFilteredBuildings] = useState<Building[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -48,22 +51,33 @@ const SiteDetail: React.FC = () => {
         }
     }, [id]);
 
+    useEffect(() => {
+        filterBuildings();
+    }, [buildings, user]);
+
     const fetchSiteData = async () => {
         try {
             setLoading(true);
-            const [siteData, allBuildings] = await Promise.all([
-                siteService.getById(Number(id)),
-                buildingService.getAll(Number(id))
-            ]);
+            const siteData = await siteService.getById(Number(id));
 
-            // Filtrer côté frontend en attendant la correction backend
-            const filteredBuildings = allBuildings.filter(building => building.site_id === Number(id));
+            // Utiliser les bâtiments du site qui contiennent déjà les parties avec leurs propriétaires
+            const rawBuildings = siteData.batiments || [];
+            
+            // Transformer les bâtiments pour s'assurer qu'ils ont la bonne structure
+            const buildingsWithParties = rawBuildings.map((building: any) => ({
+                ...building,
+                nom: building.name || building.nom, // Assurer la compatibilité name/nom
+                typologie: building.type || building.typologie, // Assurer la compatibilité type/typologie
+                parties: building.parties || [] // Assurer que parties est un tableau
+            }));
 
             // Trier par date de création (plus récent en premier)
-            const sortedBuildings = filteredBuildings.sort((a, b) =>
+            const sortedBuildings = buildingsWithParties.sort((a, b) =>
                 new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             );
 
+            // Debug supprimé - fonctionnement normal
+            
             setSite(siteData);
             setBuildings(sortedBuildings);
         } catch (err) {
@@ -72,6 +86,23 @@ const SiteDetail: React.FC = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const filterBuildings = () => {
+        let filtered = [...buildings];
+
+        // Filtrer pour les utilisateurs entreprise
+        if (isEnterpriseUser() && user) {
+            // Ne montrer que les bâtiments qui contiennent des parties dont l'utilisateur est propriétaire
+            filtered = buildings.filter(building => {
+                if (!building.parties || !Array.isArray(building.parties)) {
+                    return false;
+                }
+                return building.parties.some(partie => partie.owner_id === user.id);
+            });
+        }
+
+        setFilteredBuildings(filtered);
     };
 
     const handleDeleteBuilding = async () => {
@@ -228,13 +259,15 @@ const SiteDetail: React.FC = () => {
                         <span className="text-gray-900">{site.nom}</span>
                     </nav>
                     <div className="flex items-center gap-2">
-                        <Link
-                            to={`/sites/${site.id}/edit`}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                        >
-                            <Edit size={16} />
-                            Modifier le site
-                        </Link>
+                        {canEditSites() && (
+                            <Link
+                                to={`/sites/${site.id}/edit`}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            >
+                                <Edit size={16} />
+                                Modifier le site
+                            </Link>
+                        )}
                     </div>
                 </div>
 
@@ -278,33 +311,37 @@ const SiteDetail: React.FC = () => {
             <div className="bg-white p-6 rounded-lg shadow-sm">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-semibold text-gray-900">
-                        Bâtiments ({buildings.length})
+                        Bâtiments ({filteredBuildings.length})
                     </h2>
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                    >
-                        <Plus size={16} />
-                        Nouveau bâtiment
-                    </button>
+                    {canCreateBuildings() && (
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                        >
+                            <Plus size={16} />
+                            Nouveau bâtiment
+                        </button>
+                    )}
                 </div>
 
-                {buildings.length === 0 ? (
+                {filteredBuildings.length === 0 ? (
                     <div className="text-center py-12">
                         <BuildingIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun bâtiment</h3>
                         <p className="text-gray-500 mb-6">Ce site ne contient encore aucun bâtiment.</p>
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                        >
-                            <Plus size={18} />
-                            Créer le premier bâtiment
-                        </button>
+                        {canCreateBuildings() && (
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            >
+                                <Plus size={18} />
+                                Créer le premier bâtiment
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {buildings.map((building) => (
+                        {filteredBuildings.map((building) => (
                             <div
                                 key={building.id}
                                 className="border border-gray-200 rounded-lg p-6 hover:border-blue-300 hover:shadow-md transition-all"
@@ -358,21 +395,25 @@ const SiteDetail: React.FC = () => {
                                             Voir détails
                                             <ChevronRight size={16} />
                                         </Link>
-                                        <Link
-                                            to={`/sites/${site.id}/buildings/${building.id}/edit`}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
-                                        >
-                                            <Edit size={16} />
-                                        </Link>
-                                        <button
-                                            onClick={() => {
-                                                setBuildingToDelete(building);
-                                                setShowDeleteModal(true);
-                                            }}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-md"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        {canEditSites() && (
+                                            <Link
+                                                to={`/sites/${site.id}/buildings/${building.id}/edit`}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
+                                            >
+                                                <Edit size={16} />
+                                            </Link>
+                                        )}
+                                        {canDeleteItems() && (
+                                            <button
+                                                onClick={() => {
+                                                    setBuildingToDelete(building);
+                                                    setShowDeleteModal(true);
+                                                }}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-md"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>

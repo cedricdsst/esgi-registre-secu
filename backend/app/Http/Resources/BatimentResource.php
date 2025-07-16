@@ -35,6 +35,7 @@ class BatimentResource extends JsonResource
             }),
             
             'niveaux' => NiveauResource::collection($this->whenLoaded('niveaux')),
+            'parties' => PartieResource::collection($this->whenLoaded('parties')),
             'droits_batiment' => DroitsBatimentResource::collection($this->whenLoaded('droitsBatiment')),
             
             // Typologies spécifiques

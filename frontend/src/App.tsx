@@ -12,6 +12,10 @@ import SiteDetail from './pages/SiteDetail';
 import Buildings from './pages/Buildings';
 import BatimentDetail from './pages/BatimentDetail';
 import UserManagement from './pages/UserManagement';
+import Interventions from './pages/Interventions';
+import InterventionDetail from './pages/InterventionDetail';
+import Rapports from './pages/Rapports';
+import RapportDetail from './pages/RapportDetail';
 
 function App() {
   return (
@@ -69,6 +73,41 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <BatimentDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            {/* Route des interventions (user-entreprise uniquement) */}
+            <Route path="/interventions" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Interventions />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            {/* Route de détail d'intervention */}
+            <Route path="/interventions/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <InterventionDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            {/* Routes des rapports */}
+            <Route path="/rapports" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Rapports />
+                </Layout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/rapports/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <RapportDetail />
                 </Layout>
               </ProtectedRoute>
             } />
